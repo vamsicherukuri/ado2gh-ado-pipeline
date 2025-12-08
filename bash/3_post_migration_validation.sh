@@ -235,12 +235,12 @@ parse_csv_line() {
 
 # --- Batch validation from CSV ---
 validate_from_csv() {
-    local csv_path="${1:-repos.csv}"
+    local csv_path="${1:-bash/repos.csv}"
 
     if [ ! -f "$csv_path" ]; then
         write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: CSV file not found: $csv_path"
         return 1
-    fi
+    }
 
     tail -n +2 "$csv_path" | while IFS= read -r line; do
         line="${line%$'\r'}"
@@ -264,4 +264,4 @@ validate_from_csv() {
 #validate_migration "$ado_org" "$ado_project" "$ado_repo" "$github_org" "$gh_repo"
 
 # Or batch mode
-validate_from_csv "repos.csv"
+validate_from_csv "bash/repos.csv"
