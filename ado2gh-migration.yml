@@ -1,7 +1,22 @@
 trigger: none
 
+# Uncomment to enable manual trigger with parameters
+# parameters:
+#   - name: maxConcurrent
+#     displayName: 'Maximum Concurrent Migrations'
+#     type: number
+#     default: 3
+#     values:
+#       - 1
+#       - 2
+#       - 3
+#       - 4
+#       - 5
+
 variables:
   - group: core-entauto-github-migration-secrets
+  - name: maxConcurrent
+    value: 3  # Adjust based on your needs (1-5)
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -154,11 +169,12 @@ stages:
             inputs:
               targetType: 'filePath'
               filePath: 'bash/2_migration.sh'
-              arguments: '--csv bash/repos.csv --max-concurrent 3'
+              arguments: '--csv bash/repos.csv --max-concurrent $(maxConcurrent)'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               GH_TOKEN: $(GH_TOKEN)
               ADO_PAT: $(ADO_PAT)
+            timeoutInMinutes: 120  # 2 hours timeout for large migrations
 
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Migration Logs'
@@ -172,6 +188,7 @@ stages:
   - stage: PostMigrationValidation
     displayName: 'Post-Migration Validation'
     dependsOn: Migration
+    condition: succeededOrFailed()  # Run even if migration partially fails
     jobs:
       - job: ValidationCheck
         displayName: 'Run Validation Script'
@@ -205,6 +222,7 @@ stages:
             env:
               GH_TOKEN: $(GH_TOKEN)
               ADO_PAT: $(ADO_PAT)
+            timeoutInMinutes: 60
 
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Validation Logs'
@@ -214,3 +232,23 @@ stages:
               ArtifactName: 'validation-logs'
               publishLocation: 'Container'
             continueOnError: true
+
+          - task: Bash@3
+            displayName: 'Migration Summary'
+            condition: always()
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "=========================================="
+                echo "MIGRATION SUMMARY"
+                echo "=========================================="
+                echo "Pipeline: $(Build.DefinitionName)"
+                echo "Build Number: $(Build.BuildNumber)"
+                echo "Build ID: $(Build.BuildId)"
+                echo ""
+                echo "Artifacts published:"
+                echo "  - migration-logs"
+                echo "  - validation-logs"
+                echo ""
+                echo "Review artifacts for detailed migration results."
+                echo "=========================================="
