@@ -37,7 +37,7 @@ The **ADO to GitHub Migration Pipeline** automates the complete migration proces
 
 Before running this pipeline, ensure the following requirements are met:
 
-### 1. Variable Group Configuration
+### 1. Variable Group Configuration ⚠️ MANDATORY
 Create a variable group named `core-entauto-github-migration-secrets` in Azure DevOps with the following variables:
 
 | Variable Name | Description | Required |
@@ -45,12 +45,46 @@ Create a variable group named `core-entauto-github-migration-secrets` in Azure D
 | `GH_TOKEN` | GitHub Personal Access Token with `repo` and `admin:org` scopes | ✅ Yes |
 | `ADO_PAT` | Azure DevOps Personal Access Token with full access | ✅ Yes |
 
-**To create the variable group:**
-1. Navigate to **Pipelines → Library** in Azure DevOps
-2. Click **+ Variable group**
-3. Name it: `core-entauto-github-migration-secrets`
-4. Add the required variables
-5. Mark them as **secret** (lock icon)
+> **⚠️ IMPORTANT**: This variable group is **mandatory**. The pipeline will fail immediately if it doesn't exist. You must create it before running the pipeline for the first time.
+
+**Step-by-step instructions to create the variable group:**
+
+1. **Navigate to Library in Azure DevOps:**
+   - Open your browser and go to: https://dev.azure.com/contosodevopstest/ado2gh-ado-pipelines/_library
+   - Or navigate manually: Click **Pipelines** in the left menu → Click **Library**
+
+2. **Create a new Variable Group:**
+   - Click the **+ Variable group** button at the top
+   
+3. **Configure the variable group:**
+   - **Variable group name**: Enter `core-entauto-github-migration-secrets` (must match exactly)
+   - **Description** (optional): "GitHub and Azure DevOps PAT tokens for repository migration"
+   
+4. **Add the GH_TOKEN variable:**
+   - Click **+ Add** under Variables section
+   - **Name**: `GH_TOKEN`
+   - **Value**: Paste your GitHub Personal Access Token (you'll create this in step 2 below)
+   - Click the **lock icon** 🔒 to mark it as **secret**
+   
+5. **Add the ADO_PAT variable:**
+   - Click **+ Add** again
+   - **Name**: `ADO_PAT`
+   - **Value**: Paste your Azure DevOps Personal Access Token (you'll create this in step 3 below)
+   - Click the **lock icon** 🔒 to mark it as **secret**
+
+6. **Set permissions (if needed):**
+   - Click **Pipeline permissions** tab
+   - If the pipeline isn't automatically authorized, click **+** and add "ADO to GitHub Migration Pipeline"
+   - This allows the pipeline to access the variable group
+
+7. **Save the variable group:**
+   - Click **Save** at the top
+
+**Verification:**
+After creating the variable group, you should see:
+- Variable group name: `core-entauto-github-migration-secrets`
+- 2 variables: `GH_TOKEN` (**secret**), `ADO_PAT` (**secret**)
+- Both variables should show 🔒 (locked) indicating they are secret
 
 ### 2. GitHub Personal Access Token (PAT)
 Create a GitHub PAT with the following scopes:
