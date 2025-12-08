@@ -375,3 +375,4 @@ echo "[INFO] Wrote migration results with Migration_Status column: ${OUTPUT_CSV_
 # Do not exit non-zero; let the workflow decide
 if (( ${#FAILED[@]} > 0 )); then
   echo -e "\033[33m[WARNING] Migration completed with ${#FAILED[@]} failures\033[0m"
+fi
