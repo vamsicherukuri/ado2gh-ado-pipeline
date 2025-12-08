@@ -1,0 +1,216 @@
+trigger: none
+
+variables:
+  - group: core-entauto-github-migration-secrets
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: PrerequisiteValidation
+    displayName: 'Validate Prerequisites'
+    jobs:
+      - job: ValidatePrerequisites
+        displayName: 'Check Prerequisites'
+        steps:
+          - checkout: self
+          
+          - task: Bash@3
+            displayName: 'Validate repos.csv File'
+            inputs:
+              targetType: 'inline'
+              script: |
+                set -e
+                echo "=========================================="
+                echo "PREREQUISITE VALIDATION"
+                echo "=========================================="
+                
+                # Check if repos.csv exists
+                CSV_FILE="bash/repos.csv"
+                if [ ! -f "$CSV_FILE" ]; then
+                  echo "❌ ERROR: repos.csv file not found at $CSV_FILE"
+                  exit 1
+                fi
+                echo "✅ repos.csv file exists"
+                
+                # Check if file is not empty
+                if [ ! -s "$CSV_FILE" ]; then
+                  echo "❌ ERROR: repos.csv file is empty"
+                  exit 1
+                fi
+                echo "✅ repos.csv file is not empty"
+                
+                # Read header and validate required columns
+                HEADER=$(head -n 1 "$CSV_FILE")
+                echo ""
+                echo "CSV Header: $HEADER"
+                echo ""
+                
+                # Check for required columns
+                REQUIRED_COLUMNS=("github_org" "github_repo" "gh_repo_visibility")
+                MISSING_COLUMNS=()
+                
+                for col in "${REQUIRED_COLUMNS[@]}"; do
+                  if ! echo "$HEADER" | grep -q "$col"; then
+                    MISSING_COLUMNS+=("$col")
+                  fi
+                done
+                
+                if [ ${#MISSING_COLUMNS[@]} -gt 0 ]; then
+                  echo "❌ ERROR: Missing required columns in repos.csv:"
+                  for col in "${MISSING_COLUMNS[@]}"; do
+                    echo "  - $col"
+                  done
+                  exit 1
+                fi
+                
+                echo "✅ All required columns present: ${REQUIRED_COLUMNS[*]}"
+                
+                # Count repositories to migrate
+                REPO_COUNT=$(($(wc -l < "$CSV_FILE") - 1))
+                echo ""
+                echo "✅ Found $REPO_COUNT repositories to process"
+                echo "=========================================="
+
+  - stage: MigrationReadinessCheck
+    displayName: 'Migration Readiness Check'
+    dependsOn: PrerequisiteValidation
+    jobs:
+      - job: ReadinessCheck
+        displayName: 'Run Readiness Check Script'
+        steps:
+          - checkout: self
+          
+          - task: Bash@3
+            displayName: 'Install GitHub CLI'
+            inputs:
+              targetType: 'inline'
+              script: |
+                set -e
+                echo "Installing GitHub CLI..."
+                type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+                curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+                sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+                sudo apt update
+                sudo apt install gh -y
+                
+                echo ""
+                echo "✅ GitHub CLI installed:"
+                gh --version
+
+          - task: Bash@3
+            displayName: 'Execute Migration Readiness Check'
+            inputs:
+              targetType: 'filePath'
+              filePath: 'bash/1_migration_readiness_check.sh'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+            env:
+              ADO_PAT: $(ADO_PAT)
+
+  - stage: Migration
+    displayName: 'Execute Migration'
+    dependsOn: MigrationReadinessCheck
+    jobs:
+      - job: RunMigration
+        displayName: 'Run Migration Script'
+        steps:
+          - checkout: self
+          
+          - task: Bash@3
+            displayName: 'Install GitHub CLI'
+            inputs:
+              targetType: 'inline'
+              script: |
+                set -e
+                echo "Installing GitHub CLI..."
+                type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+                curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+                sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+                sudo apt update
+                sudo apt install gh -y
+                
+                echo ""
+                echo "✅ GitHub CLI installed:"
+                gh --version
+
+          - task: Bash@3
+            displayName: 'Install gh-ado2gh Extension'
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "Installing gh-ado2gh extension..."
+                gh extension install github/gh-ado2gh
+                
+                echo ""
+                echo "✅ Extension installed:"
+                gh extension list
+            env:
+              GH_TOKEN: $(GH_TOKEN)
+
+          - task: Bash@3
+            displayName: 'Execute Migration'
+            inputs:
+              targetType: 'filePath'
+              filePath: 'bash/2_migration.sh'
+              arguments: '--csv bash/repos.csv --max-concurrent 3'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+            env:
+              GH_TOKEN: $(GH_TOKEN)
+              ADO_PAT: $(ADO_PAT)
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Migration Logs'
+            condition: always()
+            inputs:
+              PathtoPublish: '$(System.DefaultWorkingDirectory)'
+              ArtifactName: 'migration-logs'
+              publishLocation: 'Container'
+            continueOnError: true
+
+  - stage: PostMigrationValidation
+    displayName: 'Post-Migration Validation'
+    dependsOn: Migration
+    jobs:
+      - job: ValidationCheck
+        displayName: 'Run Validation Script'
+        steps:
+          - checkout: self
+          
+          - task: Bash@3
+            displayName: 'Install GitHub CLI'
+            inputs:
+              targetType: 'inline'
+              script: |
+                set -e
+                echo "Installing GitHub CLI..."
+                type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+                curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+                sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+                sudo apt update
+                sudo apt install gh -y
+                
+                echo ""
+                echo "✅ GitHub CLI installed:"
+                gh --version
+
+          - task: Bash@3
+            displayName: 'Execute Post-Migration Validation'
+            inputs:
+              targetType: 'filePath'
+              filePath: 'bash/3_post_migration_validation.sh'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+            env:
+              GH_TOKEN: $(GH_TOKEN)
+              ADO_PAT: $(ADO_PAT)
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Validation Logs'
+            condition: always()
+            inputs:
+              PathtoPublish: '$(System.DefaultWorkingDirectory)'
+              ArtifactName: 'validation-logs'
+              publishLocation: 'Container'
+            continueOnError: true
