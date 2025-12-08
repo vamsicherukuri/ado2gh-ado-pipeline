@@ -121,6 +121,8 @@ stages:
               filePath: 'bash/1_migration_readiness_check.sh'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
+              GH_TOKEN: $(GH_TOKEN)
+              GH_PAT: $(GH_TOKEN)
               ADO_PAT: $(ADO_PAT)
 
   - stage: Migration
@@ -173,6 +175,7 @@ stages:
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               GH_TOKEN: $(GH_TOKEN)
+              GH_PAT: $(GH_TOKEN)
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 120  # 2 hours timeout for large migrations
 
@@ -221,6 +224,7 @@ stages:
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               GH_TOKEN: $(GH_TOKEN)
+              GH_PAT: $(GH_TOKEN)
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 60
 
