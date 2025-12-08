@@ -240,7 +240,7 @@ validate_from_csv() {
     if [ ! -f "$csv_path" ]; then
         write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: CSV file not found: $csv_path"
         return 1
-    }
+    fi
 
     tail -n +2 "$csv_path" | while IFS= read -r line; do
         line="${line%$'\r'}"
