@@ -256,3 +256,90 @@ stages:
                 echo ""
                 echo "Review artifacts for detailed migration results."
                 echo "=========================================="
+
+  - stage: PipelineRewiring
+    displayName: 'Rewire Pipelines to GitHub'
+    dependsOn: PostMigrationValidation
+    condition: succeeded()
+    jobs:
+      - job: RewirePipelines
+        displayName: 'Run Pipeline Rewiring'
+        steps:
+          - checkout: self
+          
+          - task: Bash@3
+            displayName: 'Install GitHub CLI'
+            inputs:
+              targetType: 'inline'
+              script: |
+                set -e
+                echo "Installing GitHub CLI..."
+                type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+                curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+                sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+                sudo apt update
+                sudo apt install gh -y
+                
+                echo ""
+                echo "✅ GitHub CLI installed:"
+                gh --version
+
+          - task: Bash@3
+            displayName: 'Install gh-ado2gh Extension'
+            inputs:
+              targetType: 'inline'
+              script: |
+                set -e
+                echo "Installing gh-ado2gh extension..."
+                gh extension install github/gh-ado2gh
+                
+                echo ""
+                echo "✅ Extension installed:"
+                gh extension list
+            env:
+              GH_TOKEN: $(GH_TOKEN)
+
+          - task: Bash@3
+            displayName: 'Make Rewire Script Executable'
+            inputs:
+              targetType: 'inline'
+              script: |
+                chmod +x bash/4_rewire_pipeline.sh
+                echo "✅ Script permissions set"
+
+          - task: Bash@3
+            displayName: 'Execute Pipeline Rewiring'
+            inputs:
+              targetType: 'filePath'
+              filePath: 'bash/4_rewire_pipeline.sh'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+            env:
+              GH_TOKEN: $(GH_TOKEN)
+              GH_PAT: $(GH_TOKEN)
+              ADO_PAT: $(ADO_PAT)
+            timeoutInMinutes: 60
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Rewiring Logs'
+            condition: always()
+            inputs:
+              PathtoPublish: '$(System.DefaultWorkingDirectory)'
+              ArtifactName: 'rewiring-logs'
+              publishLocation: 'Container'
+            continueOnError: true
+
+          - task: Bash@3
+            displayName: 'Rewiring Summary'
+            condition: always()
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "=========================================="
+                echo "PIPELINE REWIRING SUMMARY"
+                echo "=========================================="
+                echo "Build Number: $(Build.BuildNumber)"
+                echo ""
+                echo "Check the rewiring-logs artifact for detailed results"
+                echo "Log files: pipeline-rewiring-*.txt"
+                echo "=========================================="

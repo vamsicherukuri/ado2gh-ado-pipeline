@@ -1,0 +1,3 @@
+org,teamproject,repo,pipeline,url,serviceConnection,github_org,github_repo
+contosodevopstest,sample-repo-testing,sample1,\sample2-ci,https://dev.azure.com/contosodevopstest/sample-repo-testing/_build?definitionId=25,e2b1070b-277f-4e60-8bdb-8bb3b5ac122a,ADO2GH-Migration,sample2
+contosodevopstest,sample-repo-testing,sample1,\sample1-ci,https://dev.azure.com/contosodevopstest/sample-repo-testing/_build?definitionId=24,e2b1070b-277f-4e60-8bdb-8bb3b5ac122a,ADO2GH-Migration,sample1
