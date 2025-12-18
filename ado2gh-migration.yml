@@ -23,7 +23,7 @@ pool:
 
 stages:
   - stage: PrerequisiteValidation
-    displayName: 'Validate Prerequisites'
+    displayName: 'prereq Validation'
     jobs:
       - job: ValidatePrerequisites
         displayName: 'Check Prerequisites'
@@ -88,7 +88,7 @@ stages:
                 echo "=========================================="
 
   - stage: MigrationReadinessCheck
-    displayName: 'Migration Readiness Check'
+    displayName: 'active pr & pipeline check'
     dependsOn: PrerequisiteValidation
     jobs:
       - job: ReadinessCheck
@@ -126,7 +126,7 @@ stages:
               ADO_PAT: $(ADO_PAT)
 
   - stage: Migration
-    displayName: 'Execute Migration'
+    displayName: 'repo migration'
     dependsOn: MigrationReadinessCheck
     jobs:
       - job: RunMigration
@@ -189,9 +189,8 @@ stages:
             continueOnError: true
 
   - stage: PostMigrationValidation
-    displayName: 'Post-Migration Validation'
+    displayName: 'repo migration validation'
     dependsOn: Migration
-    condition: succeededOrFailed()  # Run even if migration partially fails
     jobs:
       - job: ValidationCheck
         displayName: 'Run Validation Script'
@@ -258,7 +257,7 @@ stages:
                 echo "=========================================="
 
   - stage: PipelineRewiring
-    displayName: 'Rewire Pipelines to GitHub'
+    displayName: 'pipeline rewiring'
     dependsOn: PostMigrationValidation
     condition: succeeded()
     jobs:
