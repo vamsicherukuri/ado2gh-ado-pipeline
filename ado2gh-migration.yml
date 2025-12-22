@@ -289,6 +289,45 @@ stages:
                 echo ""
                 echo "Review artifacts for detailed migration results."
                 echo "=========================================="
+      
+      - job: WaitForApprovalToRewire
+        displayName: '⏸️ Approve to START PIPELINE REWIRING'
+        dependsOn: ValidationCheck
+        condition: succeeded()
+        pool: server
+        timeoutInMinutes: 1440
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Review Validation & Approve Rewiring'
+            inputs:
+              notifyUsers: '$(Build.RequestedForEmail)'
+              instructions: |
+                ## 📋 Repo Migration Validation COMPLETED
+                
+                ⚠️ **IMPORTANT**: The next stage will rewire pipelines to use GitHub repositories.
+                
+                ### 📊 What to Review
+                1. Download and review the **migration-logs** artifact
+                2. Download and review the **validation-logs** artifact
+                3. Verify all repositories migrated successfully
+                4. Check validation results for any issues
+                5. Confirm commit history is intact
+                
+                ### ⏭️ Next Stage: Pipeline Rewiring
+                This will:
+                - Update ADO pipelines to point to GitHub repositories
+                - Modify pipeline configurations
+                - Change repository sources
+                
+                ### 📁 Artifacts to Review
+                - migration-logs: Migration execution details
+                - validation-logs: Validation check results
+                
+                ---
+                
+                ✅ Click **Resume** to START PIPELINE REWIRING
+                ❌ Click **Reject** to stop before rewiring
+              onTimeout: 'reject'
 
   - stage: PipelineRewiring
     displayName: 'pipeline rewiring'
