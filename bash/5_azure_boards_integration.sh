@@ -8,8 +8,9 @@
 # the gh ado2gh integrate-boards command for each repository.
 #
 # Prerequisites:
-#   - repos.csv with required columns
-#   - ADO_PAT environment variable (Azure DevOps Personal Access Token)
+#   - repos.csv with required columns (org, teamproject, github_org, github_repo)
+#   - AZURE_BOARDS_PAT environment variable (Azure DevOps PAT for Boards integration)
+#     Required scopes: Code (Read), Work Items (Read, Write), Project and Team (Read)
 #   - GH_PAT environment variable (GitHub Personal Access Token)
 #   - gh CLI installed with ado2gh extension
 #
@@ -79,11 +80,12 @@ validate_prerequisites() {
     log_success "repos.csv found"
     
     # Check for required environment variables
-    if [ -z "${ADO_PAT:-}" ]; then
-        log_error "ADO_PAT environment variable is not set"
+    if [ -z "${AZURE_BOARDS_PAT:-}" ]; then
+        log_error "AZURE_BOARDS_PAT environment variable is not set"
+        log_info "This PAT requires: Code (Read), Work Items (Read, Write), Project and Team (Read)"
         exit 1
     fi
-    log_success "ADO_PAT is set"
+    log_success "AZURE_BOARDS_PAT is set"
     
     if [ -z "${GH_PAT:-}" ]; then
         log_error "GH_PAT environment variable is not set"
@@ -108,7 +110,7 @@ validate_prerequisites() {
     
     # Validate CSV headers
     HEADER=$(head -n 1 bash/repos.csv)
-    REQUIRED_COLUMNS=("ado_org" "ado_team_project" "github_org" "github_repo")
+    REQUIRED_COLUMNS=("org" "teamproject" "github_org" "github_repo")
     
     for col in "${REQUIRED_COLUMNS[@]}"; do
         if ! echo "$HEADER" | grep -q "$col"; then
@@ -136,7 +138,7 @@ validate_github_connection() {
     
     # Call Azure DevOps REST API
     local response
-    response=$(curl -s -u ":${ADO_PAT}" \
+    response=$(curl -s -u ":${AZURE_BOARDS_PAT}" \
         -H "Content-Type: application/json" \
         "${api_url}")
     
@@ -178,7 +180,7 @@ integrate_azure_boards() {
     
     # Set environment variables for gh CLI
     export GH_TOKEN="${GH_PAT}"
-    export ADO_TOKEN="${ADO_PAT}"
+    export ADO_TOKEN="${AZURE_BOARDS_PAT}"
     
     # Execute gh ado2gh integrate-boards command
     local integration_log="integration-${github_org}-${github_repo}-$(date +%Y%m%d-%H%M%S).log"
@@ -210,7 +212,7 @@ process_repositories() {
     # Read CSV file (skip header)
     local line_number=0
     
-    while IFS=, read -r ado_org ado_team_project ado_repo github_org github_repo gh_repo_visibility rest; do
+    while IFS=, read -r org teamproject repo url last_push_date pipeline_count size contributor pr_count commits github_org github_repo gh_repo_visibility rest; do
         line_number=$((line_number + 1))
         
         # Skip header row
@@ -219,24 +221,24 @@ process_repositories() {
         fi
         
         # Skip empty lines
-        if [ -z "$ado_org" ] && [ -z "$ado_team_project" ]; then
+        if [ -z "$org" ] && [ -z "$teamproject" ]; then
             continue
         fi
         
         TOTAL_REPOS=$((TOTAL_REPOS + 1))
         
         log_section "Repository $TOTAL_REPOS: ${github_org}/${github_repo}"
-        log_info "ADO Org: ${ado_org}"
-        log_info "ADO Project: ${ado_team_project}"
+        log_info "ADO Org: ${org}"
+        log_info "ADO Project: ${teamproject}"
         log_info "GitHub Org: ${github_org}"
         log_info "GitHub Repo: ${github_repo}"
         
         # Validate GitHub connection
-        if validate_github_connection "$ado_org" "$ado_team_project" "$github_org" "$github_repo"; then
+        if validate_github_connection "$org" "$teamproject" "$github_org" "$github_repo"; then
             VALIDATED_CONNECTIONS=$((VALIDATED_CONNECTIONS + 1))
             
             # Attempt Azure Boards integration
-            if integrate_azure_boards "$ado_org" "$ado_team_project" "$github_org" "$github_repo"; then
+            if integrate_azure_boards "$org" "$teamproject" "$github_org" "$github_repo"; then
                 SUCCESSFUL_INTEGRATIONS=$((SUCCESSFUL_INTEGRATIONS + 1))
             else
                 FAILED_INTEGRATIONS=$((FAILED_INTEGRATIONS + 1))
