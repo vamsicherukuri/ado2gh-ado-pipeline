@@ -82,7 +82,7 @@ parse_csv_line() {
 
 # Get active pull requests
 line_num=0
-while IFS= read -r line; do
+while IFS= read -r line || [ -n "$line" ]; do
     ((line_num++))
     
     # Skip header line
@@ -90,8 +90,14 @@ while IFS= read -r line; do
         continue
     fi
     
+    # Skip empty lines
+    if [ -z "$line" ]; then
+        continue
+    fi
+    
     # Parse the CSV line
-    readarray -t fields < <(parse_csv_line "$line")
+    declare -a fields
+    readarray -t fields < <(parse_csv_line "$line") || true
     
     if [ ${#fields[@]} -ge 3 ]; then
         # Clean up quotes if present
@@ -146,7 +152,7 @@ done < "$csv_path"
 # Get unique projects
 unique_projects=()
 line_num=0
-while IFS= read -r line; do
+while IFS= read -r line || [ -n "$line" ]; do
     ((line_num++))
     
     # Skip header line
@@ -154,8 +160,14 @@ while IFS= read -r line; do
         continue
     fi
     
+    # Skip empty lines
+    if [ -z "$line" ]; then
+        continue
+    fi
+    
     # Parse the CSV line
-    readarray -t fields < <(parse_csv_line "$line")
+    declare -a fields
+    readarray -t fields < <(parse_csv_line "$line") || true
     
     if [ ${#fields[@]} -ge 2 ]; then
         ado_org=$(echo "${fields[0]}" | sed 's/^"//;s/"$//')
