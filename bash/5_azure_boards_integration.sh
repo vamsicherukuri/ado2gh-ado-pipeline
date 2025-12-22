@@ -210,8 +210,8 @@ process_repositories() {
     # Read CSV file (skip header)
     local line_number=0
     
-    while IFS=, read -r ado_org ado_team_project ado_repo github_org github_repo gh_repo_visibility rest; do
-        line_number=$((line_number + 1))
+    while IFS= read -r line; do
+        : $((line_number++))
         
         # Skip header row
         if [ $line_number -eq 1 ]; then
@@ -219,7 +219,21 @@ process_repositories() {
         fi
         
         # Skip empty lines
-        if [ -z "$ado_org" ] && [ -z "$ado_team_project" ]; then
+        if [ -z "$line" ]; then
+            continue
+        fi
+        
+        # Extract only the fields we need (columns 1, 2, 11, 12)
+        # First 2 columns are clean
+        ado_org=$(echo "$line" | cut -d',' -f1)
+        ado_team_project=$(echo "$line" | cut -d',' -f2)
+        
+        # Last 3 columns are clean - extract from end to avoid quoted field issues
+        github_org=$(echo "$line" | rev | cut -d',' -f3 | rev)
+        github_repo=$(echo "$line" | rev | cut -d',' -f2 | rev)
+        
+        # Skip if required fields are empty
+        if [ -z "$ado_org" ] || [ -z "$ado_team_project" ] || [ -z "$github_org" ] || [ -z "$github_repo" ]; then
             continue
         fi
         
