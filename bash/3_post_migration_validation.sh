@@ -236,8 +236,9 @@ parse_csv_line() {
     done
     fields+=("$field")
 
-    # Return: org(0), teamproject(1), repo(2), github_org(10), github_repo(11)
-    echo "${fields[0]}" "${fields[1]}" "${fields[2]}" "${fields[10]}" "${fields[11]}"
+    # Return: org(0), teamproject(1), repo(2), github_org(3), github_repo(4)
+    # CSV now has 6 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility
+    echo "${fields[0]}" "${fields[1]}" "${fields[2]}" "${fields[3]}" "${fields[4]}"
 }
 
 # --- Batch validation from CSV ---
