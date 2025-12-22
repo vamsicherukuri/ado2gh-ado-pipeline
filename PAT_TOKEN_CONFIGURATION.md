@@ -11,12 +11,12 @@ This pipeline uses **separate PAT tokens** for different stages to follow the pr
 **Purpose:** Migration, validation, and rewiring operations
 
 **Variables:**
-- `GH_TOKEN` - GitHub Personal Access Token
+- `GH_PAT` - GitHub Personal Access Token
 - `ADO_PAT` - Azure DevOps Personal Access Token
 
 **Required Scopes:**
 
-**GH_TOKEN (GitHub):**
+**GH_PAT (GitHub):**
 - `repo` - Full control of private repositories
 - `admin:org` - Read org and team membership
 - `workflow` - Update GitHub Actions workflows
@@ -90,7 +90,7 @@ This pipeline uses **separate PAT tokens** for different stages to follow the pr
 2. Click **+ Variable group**
 3. Name: `core-entauto-github-migration-secrets`
 4. Add variables:
-   - Name: `GH_TOKEN`, Value: `<your-github-token>`, **Lock** (secret)
+   - Name: `GH_PAT`, Value: `<your-github-token>`, **Lock** (secret)
    - Name: `ADO_PAT`, Value: `<your-ado-token>`, **Lock** (secret)
 5. Click **Save**
 
@@ -174,10 +174,10 @@ This pipeline uses **separate PAT tokens** for different stages to follow the pr
 | Stage | Variable Group | PAT Tokens Used |
 |-------|---------------|----------------|
 | prereq Validation | core-entauto-github-migration-secrets | - |
-| active pr & pipeline check | core-entauto-github-migration-secrets | GH_TOKEN, ADO_PAT |
-| repo migration | core-entauto-github-migration-secrets | GH_TOKEN, ADO_PAT |
-| repo migration validation | core-entauto-github-migration-secrets | GH_TOKEN, ADO_PAT |
-| pipeline rewiring | core-entauto-github-migration-secrets | GH_TOKEN, ADO_PAT |
+| active pr & pipeline check | core-entauto-github-migration-secrets | GH_PAT, ADO_PAT |
+| repo migration | core-entauto-github-migration-secrets | GH_PAT, ADO_PAT |
+| repo migration validation | core-entauto-github-migration-secrets | GH_PAT, ADO_PAT |
+| pipeline rewiring | core-entauto-github-migration-secrets | GH_PAT, ADO_PAT |
 | **Azure Boards Integration** | **azure-boards-integration-secrets** | **GH_PAT, ADO_PAT (Boards-only scopes)** |
 
 ---

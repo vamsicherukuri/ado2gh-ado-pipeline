@@ -2,7 +2,7 @@ trigger: none
 
 variables:
   # Variable group for migration-related PAT tokens (Stages 1-5)
-  # Contains: GH_TOKEN, ADO_PAT (for migration, readiness checks, validation, rewiring)
+  # Contains: GH_PAT, ADO_PAT (for migration, readiness checks, validation, rewiring)
   - group: core-entauto-github-migration-secrets
   
   - name: maxConcurrent
@@ -112,7 +112,8 @@ stages:
               filePath: 'bash/1_migration_readiness_check.sh'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
-              GH_TOKEN: $(GH_TOKEN)
+              GH_TOKEN: $(GH_PAT)
+              GH_PAT: $(GH_PAT)
               ADO_PAT: $(ADO_PAT)
       
       - job: WaitForApprovalToMigrate
@@ -189,7 +190,7 @@ stages:
                 echo "✅ Extension installed:"
                 gh extension list
             env:
-              GH_TOKEN: $(GH_TOKEN)
+              GH_TOKEN: $(GH_PAT)
 
           - task: Bash@3
             displayName: 'Execute Migration'
@@ -199,7 +200,8 @@ stages:
               arguments: '--csv bash/repos.csv --max-concurrent $(maxConcurrent)'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
-              GH_TOKEN: $(GH_TOKEN)
+              GH_TOKEN: $(GH_PAT)
+              GH_PAT: $(GH_PAT)
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 120  # 2 hours timeout for large migrations
 
@@ -247,7 +249,8 @@ stages:
               filePath: 'bash/3_post_migration_validation.sh'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
-              GH_TOKEN: $(GH_TOKEN)
+              GH_TOKEN: $(GH_PAT)
+              GH_PAT: $(GH_PAT)
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 60
 
@@ -361,7 +364,7 @@ stages:
                 echo "✅ Extension installed:"
                 gh extension list
             env:
-              GH_TOKEN: $(GH_TOKEN)
+              GH_TOKEN: $(GH_PAT)
 
           - task: Bash@3
             displayName: 'Make Rewire Script Executable'
@@ -378,7 +381,8 @@ stages:
               filePath: 'bash/4_rewire_pipeline.sh'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
-              GH_TOKEN: $(GH_TOKEN)
+              GH_TOKEN: $(GH_PAT)
+              GH_PAT: $(GH_PAT)
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 60
 

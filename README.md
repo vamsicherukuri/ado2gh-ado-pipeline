@@ -73,7 +73,7 @@ Used in Stages 1-5 (Validation, Readiness, Migration, Validation, Rewiring)
 
 | Variable Name | Description | Required |
 |--------------|-------------|----------|
-| `GH_TOKEN` | GitHub Personal Access Token with `admin:org`, `read:user`, `repo`, `workflow` scopes | ✅ Yes |  
+| `GH_PAT` | GitHub Personal Access Token with `admin:org`, `read:user`, `repo`, `workflow` scopes | ✅ Yes |  
 | `ADO_PAT` | Azure DevOps PAT with Code (Read, Write), Build, Service Connections scopes | ✅ Yes |
 
 #### B. Boards Integration Variable Group: `azure-boards-integration-secrets`
@@ -99,7 +99,7 @@ Used in Stage 6 (Azure Boards Integration) - **SEPARATE token with limited scope
    - Click the **+ Variable group** button at the top
    - **Variable group name**: Enter `core-entauto-github-migration-secrets` (must match exactly)
    - **Description**: "Migration PAT tokens for ADO to GitHub migration (Stages 1-5)"
-   - Click **+ Add** to add `GH_TOKEN` → paste token → click 🔒 to mark as secret
+   - Click **+ Add** to add `GH_PAT` → paste token → click 🔒 to mark as secret
    - Click **+ Add** to add `ADO_PAT` → paste migration token → click 🔒 to mark as secret
    - Click **Save**
 
