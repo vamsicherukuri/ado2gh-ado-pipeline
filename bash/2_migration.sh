@@ -372,7 +372,11 @@ total_repos=$(( $(wc -l < "${CSV_PATH}") - 1 ))
 echo "[SUMMARY] Total: ${total_repos} | Migrated: ${#MIGRATED[@]} | Failed: ${#FAILED[@]}"
 echo "[INFO] Wrote migration results with Migration_Status column: ${OUTPUT_CSV_PATH}"
 
-# Do not exit non-zero; let the workflow decide
+# Exit with failure if any migrations failed
 if (( ${#FAILED[@]} > 0 )); then
-  echo -e "\033[33m[WARNING] Migration completed with ${#FAILED[@]} failures\033[0m"
+  echo -e "\033[31m[ERROR] Migration completed with ${#FAILED[@]} failures\033[0m"
+  exit 1
 fi
+
+echo -e "\033[32m[SUCCESS] All migrations completed successfully\033[0m"
+exit 0
