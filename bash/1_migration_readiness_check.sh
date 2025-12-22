@@ -49,7 +49,7 @@ echo -e "\nScanning repositories for active pull requests..."
 # Get active pull requests
 line_num=0
 while IFS= read -r line || [ -n "$line" ]; do
-    ((line_num++))
+    : $((line_num++))
     
     # Skip header line
     if [ $line_num -eq 1 ]; then
@@ -119,7 +119,7 @@ done < "$csv_path"
 unique_projects=()
 line_num=0
 while IFS= read -r line || [ -n "$line" ]; do
-    ((line_num++))
+    : $((line_num++))
     
     # Skip header line
     if [ $line_num -eq 1 ]; then
