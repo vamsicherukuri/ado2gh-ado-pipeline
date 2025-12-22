@@ -41,44 +41,7 @@ urlencode() {
   printf '%s' "$1" | jq -Rr @uri
 }
 
-
 echo -e "\nScanning repositories for active pull requests..."
-
-# Function to parse CSV line properly (handles quoted fields)
-parse_csv_line() {
-    local line="$1"
-    local -a fields=()
-    local field=""
-    local in_quotes=false
-    local i
-    local char
-    
-    for ((i=0; i<${#line}; i++)); do
-        char="${line:$i:1}"
-        if [[ "$char" == '"' ]]; then
-            if [[ "$in_quotes" == true ]]; then
-                # Check if next char is also quote (escaped quote)
-                if [[ "${line:$((i+1)):1}" == '"' ]]; then
-                    field+="$char"
-                    ((i++))
-                else
-                    in_quotes=false
-                fi
-            else
-                in_quotes=true
-            fi
-        elif [[ "$char" == ',' && "$in_quotes" == false ]]; then
-            fields+=("$field")
-            field=""
-        else
-            field+="$char"
-        fi
-    done
-    fields+=("$field")
-    
-    # Return fields array
-    printf '%s\n' "${fields[@]}"
-}
 
 # Get active pull requests
 line_num=0
@@ -95,15 +58,16 @@ while IFS= read -r line || [ -n "$line" ]; do
         continue
     fi
     
-    # Parse the CSV line
-    declare -a fields
-    readarray -t fields < <(parse_csv_line "$line") || true
+    # Simple extraction: just get first 3 fields (org, teamproject, repo)
+    # This avoids complex parsing of quoted fields with commas
+    ado_org=$(echo "$line" | cut -d',' -f1 | sed 's/^"//;s/"$//')
+    ado_project=$(echo "$line" | cut -d',' -f2 | sed 's/^"//;s/"$//')
+    selected_repo_name=$(echo "$line" | cut -d',' -f3 | sed 's/^"//;s/"$//')
     
-    if [ ${#fields[@]} -ge 3 ]; then
-        # Clean up quotes if present
-        ado_org=$(echo "${fields[0]}" | sed 's/^"//;s/"$//')
-        ado_project=$(echo "${fields[1]}" | sed 's/^"//;s/"$//')
-        selected_repo_name=$(echo "${fields[2]}" | sed 's/^"//;s/"$//')
+    # Skip if any required field is empty
+    if [ -z "$ado_org" ] || [ -z "$ado_project" ] || [ -z "$selected_repo_name" ]; then
+        continue
+    fi
 		
         enc_ado_org="$(urlencode "$ado_org")"
         enc_ado_project="$(urlencode "$ado_project")"
@@ -146,7 +110,6 @@ while IFS= read -r line || [ -n "$line" ]; do
             pr_check_failed=true
             echo -e "\033[31m[ERROR] Failed to process PRs for repository '$selected_repo_name' in project '$ado_project'.\033[0m"
         fi
-    fi
 done < "$csv_path"
 
 # Get unique projects
@@ -165,19 +128,20 @@ while IFS= read -r line || [ -n "$line" ]; do
         continue
     fi
     
-    # Parse the CSV line
-    declare -a fields
-    readarray -t fields < <(parse_csv_line "$line") || true
+    # Simple extraction: just get first 2 fields
+    ado_org=$(echo "$line" | cut -d',' -f1 | sed 's/^"//;s/"$//')
+    ado_project=$(echo "$line" | cut -d',' -f2 | sed 's/^"//;s/"$//')
     
-    if [ ${#fields[@]} -ge 2 ]; then
-        ado_org=$(echo "${fields[0]}" | sed 's/^"//;s/"$//')
-        ado_project=$(echo "${fields[1]}" | sed 's/^"//;s/"$//')
-        project_combo="$ado_org|$ado_project"
-        
-        # Check if already exists
-        if [[ ! " ${unique_projects[*]} " =~ " ${project_combo} " ]]; then
-            unique_projects+=("$project_combo")
-        fi
+    # Skip if empty
+    if [ -z "$ado_org" ] || [ -z "$ado_project" ]; then
+        continue
+    fi
+    
+    project_combo="$ado_org|$ado_project"
+    
+    # Check if already exists
+    if [[ ! " ${unique_projects[*]} " =~ " ${project_combo} " ]]; then
+        unique_projects+=("$project_combo")
     fi
 done < "$csv_path"
 
