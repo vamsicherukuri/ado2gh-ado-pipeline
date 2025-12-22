@@ -81,12 +81,12 @@ validate_prerequisites() {
     log_success "repos.csv found"
     
     # Check for required environment variables
-    if [ -z "${AZURE_BOARDS_PAT:-}" ]; then
-        log_error "AZURE_BOARDS_PAT environment variable is not set"
+    if [ -z "${ADO_PAT:-}" ]; then
+        log_error "ADO_PAT environment variable is not set"
         log_info "This PAT requires: Code (Read), Work Items (Read, Write), Project and Team (Read)"
         exit 1
     fi
-    log_success "AZURE_BOARDS_PAT is set"
+    log_success "ADO_PAT is set"
     
     if [ -z "${GH_PAT:-}" ]; then
         log_error "GH_PAT environment variable is not set"
@@ -139,7 +139,7 @@ validate_github_connection() {
     
     # Call Azure DevOps REST API
     local response
-    response=$(curl -s -u ":${AZURE_BOARDS_PAT}" \
+    response=$(curl -s -u ":${ADO_PAT}" \
         -H "Content-Type: application/json" \
         "${api_url}")
     
@@ -181,7 +181,7 @@ integrate_azure_boards() {
     
     # Set environment variables for gh CLI
     export GH_TOKEN="${GH_PAT}"
-    export ADO_TOKEN="${AZURE_BOARDS_PAT}"
+    export ADO_TOKEN="${ADO_PAT}"
     
     # Execute gh ado2gh integrate-boards command
     local integration_log="integration-${github_org}-${github_repo}-$(date +%Y%m%d-%H%M%S).log"
