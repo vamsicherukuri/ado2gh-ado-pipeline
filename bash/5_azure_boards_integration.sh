@@ -101,13 +101,8 @@ validate_prerequisites() {
     fi
     log_success "gh CLI is installed: $(gh --version | head -n 1)"
     
-    # Check if gh ado2gh extension is installed
-    if ! gh extension list | grep -q "gh-ado2gh"; then
-        log_error "gh ado2gh extension is not installed"
-        log_info "Install it with: gh extension install github/gh-ado2gh"
-        exit 1
-    fi
-    log_success "gh ado2gh extension is installed"
+    # Note: gh ado2gh extension installation is handled by the pipeline
+    # No need to validate here as it's a pipeline prerequisite
     
     # Validate CSV headers
     HEADER=$(head -n 1 bash/repos.csv)
