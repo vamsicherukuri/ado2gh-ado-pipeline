@@ -18,9 +18,9 @@ variables:
   # Contains: GH_TOKEN, ADO_PAT (for migration, readiness checks, validation, rewiring)
   - group: core-entauto-github-migration-secrets
   
-  # Variable group for Azure Boards integration PAT token
-  # Contains: AZURE_BOARDS_PAT (separate token with limited Boards-only scopes)
-  # Required scopes: Code (Read), Work Items (Read, Write), Project and Team (Read)
+  # Variable group for Azure Boards integration PAT tokens
+  # Contains: GH_PAT, ADO_PAT (separate token with limited Boards-only scopes)
+  # Required scopes for ADO_PAT: Code (Read), Work Items (Read, Write), Project and Team (Read)
   - group: azure-boards-integration-secrets
   
   - name: maxConcurrent
