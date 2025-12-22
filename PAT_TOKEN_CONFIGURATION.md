@@ -41,19 +41,19 @@ This pipeline uses **separate PAT tokens** for different stages to follow the pr
 **Purpose:** Azure Boards integration with GitHub (SEPARATE from migration)
 
 **Variables:**
-- `AZURE_BOARDS_PAT` - Azure DevOps PAT specifically for Boards integration
 - `GH_PAT` - GitHub Personal Access Token for Boards integration
+- `AZURE_BOARDS_PAT` - Azure DevOps PAT specifically for Boards integration
 
 **Required Scopes:**
 
-**AZURE_BOARDS_PAT (Azure DevOps):**
+**GH_PAT (GitHub PAT):**
+- `repo` - Full control of private repositories
+- `admin:org` - Read org and team membership
+
+**AZURE_BOARDS_PAT (Azure DevOps PAT):**
 - Code (Read only)
 - Work Items (Read, Write)
 - Project and Team (Read)
-
-**GH_PAT (GitHub):**
-- `repo` - Full control of private repositories
-- `admin:org` - Read org and team membership
 
 **Used in Stages:**
 - Azure Boards Integration (Stage 6)
@@ -98,8 +98,8 @@ This pipeline uses **separate PAT tokens** for different stages to follow the pr
 2. Click **+ Variable group**
 3. Name: `azure-boards-integration-secrets`
 4. Add variables:
-   - Name: `AZURE_BOARDS_PAT`, Value: `<your-boards-specific-ado-token>`, **Lock** (secret)
    - Name: `GH_PAT`, Value: `<your-github-token>`, **Lock** (secret)
+   - Name: `AZURE_BOARDS_PAT`, Value: `<your-boards-specific-ado-token>`, **Lock** (secret)
 5. Click **Save**
 
 ### Step 2: Create PAT Tokens
