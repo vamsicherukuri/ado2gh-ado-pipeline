@@ -252,7 +252,8 @@ validate_from_csv() {
     tail -n +2 "$csv_path" | while IFS= read -r line; do
         line="${line%$'\r'}"
         [ -z "$line" ] && continue
-        read -r org teamproject repo github_org github_repo < <(parse_csv_line "$line")
+        # CSV now has 6 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility
+        read -r org teamproject repo github_org github_repo gh_repo_visibility < <(parse_csv_line "$line")
         write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Processing: $repo -> $github_repo"
         validate_migration "$org" "$teamproject" "$repo" "$github_org" "$github_repo"
     done

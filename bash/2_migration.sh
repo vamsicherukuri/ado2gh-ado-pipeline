@@ -100,6 +100,7 @@ strip_quotes() {
 }
 
 # Header check: require these columns anywhere in header order
+# CSV now has 6 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility
 REQUIRED_COLUMNS=(org teamproject repo github_org github_repo gh_repo_visibility)
 
 read -r HEADER_LINE < "${CSV_PATH}"

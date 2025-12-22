@@ -257,17 +257,13 @@ process_repositories() {
         fi
         
         # Parse CSV line properly handling quoted fields
+        # CSV now has 6 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility
         mapfile -t fields < <(parse_csv_line "$line")
         
-        # Extract the fields we need by index (0-based)
-        # Column 1 = org (index 0)
-        # Column 2 = teamproject (index 1)
-        # Column 11 = github_org (index 10)
-        # Column 12 = github_repo (index 11)
         ado_org="${fields[0]}"
         ado_team_project="${fields[1]}"
-        github_org="${fields[10]}"
-        github_repo="${fields[11]}"
+        github_org="${fields[3]}"
+        github_repo="${fields[4]}"
         
         # Skip if required fields are empty
         if [ -z "$ado_org" ] || [ -z "$ado_team_project" ] || [ -z "$github_org" ] || [ -z "$github_repo" ]; then
