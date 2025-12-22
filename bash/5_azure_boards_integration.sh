@@ -9,8 +9,9 @@
 #
 # Prerequisites:
 #   - repos.csv with required columns (org, teamproject, github_org, github_repo)
-#   - AZURE_BOARDS_PAT environment variable (Azure DevOps PAT for Boards integration)
+#   - ADO_PAT environment variable (Azure DevOps PAT with Boards-only scopes)
 #     Required scopes: Code (Read), Work Items (Read, Write), Project and Team (Read)
+#     IMPORTANT: This should be a SEPARATE token from migration ADO_PAT
 #   - GH_PAT environment variable (GitHub Personal Access Token)
 #   - gh CLI installed with ado2gh extension
 #
@@ -212,7 +213,7 @@ process_repositories() {
     # Read CSV file (skip header)
     local line_number=0
     
-    while IFS=, read -r org teamproject repo url last_push_date pipeline_count size contributor pr_count commits github_org github_repo gh_repo_visibility rest; do
+    while IFS=, read -r ado_org ado_team_project ado_repo github_org github_repo gh_repo_visibility rest; do
         line_number=$((line_number + 1))
         
         # Skip header row
@@ -221,24 +222,24 @@ process_repositories() {
         fi
         
         # Skip empty lines
-        if [ -z "$org" ] && [ -z "$teamproject" ]; then
+        if [ -z "$ado_org" ] && [ -z "$ado_team_project" ]; then
             continue
         fi
         
         TOTAL_REPOS=$((TOTAL_REPOS + 1))
         
         log_section "Repository $TOTAL_REPOS: ${github_org}/${github_repo}"
-        log_info "ADO Org: ${org}"
-        log_info "ADO Project: ${teamproject}"
+        log_info "ADO Org: ${ado_org}"
+        log_info "ADO Project: ${ado_team_project}"
         log_info "GitHub Org: ${github_org}"
         log_info "GitHub Repo: ${github_repo}"
         
         # Validate GitHub connection
-        if validate_github_connection "$org" "$teamproject" "$github_org" "$github_repo"; then
+        if validate_github_connection "$ado_org" "$ado_team_project" "$github_org" "$github_repo"; then
             VALIDATED_CONNECTIONS=$((VALIDATED_CONNECTIONS + 1))
             
             # Attempt Azure Boards integration
-            if integrate_azure_boards "$org" "$teamproject" "$github_org" "$github_repo"; then
+            if integrate_azure_boards "$ado_org" "$ado_team_project" "$github_org" "$github_repo"; then
                 SUCCESSFUL_INTEGRATIONS=$((SUCCESSFUL_INTEGRATIONS + 1))
             else
                 FAILED_INTEGRATIONS=$((FAILED_INTEGRATIONS + 1))

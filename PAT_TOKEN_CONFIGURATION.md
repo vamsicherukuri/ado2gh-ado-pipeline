@@ -42,7 +42,7 @@ This pipeline uses **separate PAT tokens** for different stages to follow the pr
 
 **Variables:**
 - `GH_PAT` - GitHub Personal Access Token for Boards integration
-- `AZURE_BOARDS_PAT` - Azure DevOps PAT specifically for Boards integration
+- `ADO_PAT` - Azure DevOps PAT specifically for Boards integration (DIFFERENT token than migration ADO_PAT)
 
 **Required Scopes:**
 
@@ -50,13 +50,15 @@ This pipeline uses **separate PAT tokens** for different stages to follow the pr
 - `repo` - Full control of private repositories
 - `admin:org` - Read org and team membership
 
-**AZURE_BOARDS_PAT (Azure DevOps PAT):**
+**ADO_PAT (Azure DevOps PAT - Boards Only):**
 - Code (Read only)
 - Work Items (Read, Write)
 - Project and Team (Read)
 
 **Used in Stages:**
 - Azure Boards Integration (Stage 6)
+
+**IMPORTANT:** This ADO_PAT is a **separate token** from the migration ADO_PAT with limited Boards-only scopes.
 
 ---
 
@@ -99,8 +101,10 @@ This pipeline uses **separate PAT tokens** for different stages to follow the pr
 3. Name: `azure-boards-integration-secrets`
 4. Add variables:
    - Name: `GH_PAT`, Value: `<your-github-token>`, **Lock** (secret)
-   - Name: `AZURE_BOARDS_PAT`, Value: `<your-boards-specific-ado-token>`, **Lock** (secret)
+   - Name: `ADO_PAT`, Value: `<your-boards-specific-ado-token>`, **Lock** (secret)
 5. Click **Save**
+
+**Note:** The `ADO_PAT` in this group is a **different token** with different scopes than the `ADO_PAT` in `core-entauto-github-migration-secrets`.
 
 ### Step 2: Create PAT Tokens
 
@@ -129,7 +133,9 @@ This pipeline uses **separate PAT tokens** for different stages to follow the pr
 3. Name: `Azure Boards Integration PAT`
 4. Scopes: Code (Read only), Work Items (Read, Write), Project and Team (Read)
 5. Click **Create**
-6. **Copy the token** and save it as `AZURE_BOARDS_PAT` in `azure-boards-integration-secrets`
+6. **Copy the token** and save it as `ADO_PAT` in `azure-boards-integration-secrets`
+
+**CRITICAL:** This is a **different PAT token** than the migration ADO_PAT. Do not reuse the migration token.
 
 ### Step 3: Verify Pipeline Permissions
 
@@ -149,9 +155,9 @@ This pipeline uses **separate PAT tokens** for different stages to follow the pr
 
 ## Troubleshooting
 
-### Error: "AZURE_BOARDS_PAT environment variable is not set"
+### Error: "AZURE_BOARDS_PAT environment variable is not set" or "ADO_PAT not set"
 
-**Solution:** Ensure the `azure-boards-integration-secrets` variable group exists and contains `AZURE_BOARDS_PAT`
+**Solution:** Ensure the `azure-boards-integration-secrets` variable group exists and contains `ADO_PAT` with Boards-only scopes
 
 ### Error: "Permission denied" during migration
 
@@ -159,7 +165,7 @@ This pipeline uses **separate PAT tokens** for different stages to follow the pr
 
 ### Error: "Work item access denied" during Boards integration
 
-**Solution:** Verify `AZURE_BOARDS_PAT` has Work Items (Read, Write) scope
+**Solution:** Verify the `ADO_PAT` in `azure-boards-integration-secrets` has Work Items (Read, Write) scope
 
 ---
 
@@ -172,7 +178,7 @@ This pipeline uses **separate PAT tokens** for different stages to follow the pr
 | repo migration | core-entauto-github-migration-secrets | GH_TOKEN, ADO_PAT |
 | repo migration validation | core-entauto-github-migration-secrets | GH_TOKEN, ADO_PAT |
 | pipeline rewiring | core-entauto-github-migration-secrets | GH_TOKEN, ADO_PAT |
-| **Azure Boards Integration** | **azure-boards-integration-secrets** | **AZURE_BOARDS_PAT, GH_PAT** |
+| **Azure Boards Integration** | **azure-boards-integration-secrets** | **GH_PAT, ADO_PAT (Boards-only scopes)** |
 
 ---
 

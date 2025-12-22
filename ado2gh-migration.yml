@@ -432,12 +432,52 @@ stages:
     displayName: 'Azure Boards Integration'
     dependsOn: PipelineRewiring
     condition: succeeded()
-    # PAT Tokens Used: AZURE_BOARDS_PAT, GH_PAT (from azure-boards-integration-secrets)
-    # IMPORTANT: This stage uses a SEPARATE PAT token with limited Boards-only scopes
-    # DO NOT use ADO_PAT or migration tokens in this stage
+    # PAT Tokens Used: GH_PAT, ADO_PAT (from azure-boards-integration-secrets)
+    # IMPORTANT: This stage uses a SEPARATE variable group with ADO_PAT having limited Boards-only scopes
+    # This is NOT the same ADO_PAT used in migration stages
     jobs:
+      - job: WaitForApprovalToIntegrateBoards
+        displayName: '⏸️ Approve to START AZURE BOARDS INTEGRATION'
+        pool: server
+        timeoutInMinutes: 1440
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Review Rewiring & Approve Boards Integration'
+            inputs:
+              notifyUsers: '$(Build.RequestedForEmail)'
+              instructions: |
+                ## 📋 Pipeline Rewiring COMPLETED
+                
+                ⚠️ **IMPORTANT**: The next stage will integrate Azure Boards with GitHub repositories.
+                
+                ### 📊 What to Review
+                1. Download and review the **rewiring-logs** artifact
+                2. Verify pipelines were successfully rewired to GitHub
+                3. Confirm all previous stages completed successfully
+                4. Review migration, validation, and rewiring logs
+                
+                ### ⏭️ Next Stage: Azure Boards Integration
+                This will:
+                - Link Azure Boards work items to GitHub commits/PRs
+                - Enable AB# mentions in GitHub to update work items
+                - Configure GitHub ↔ Azure Boards synchronization
+                
+                ### 🔒 Security Note
+                This stage uses a **separate ADO_PAT** with limited Boards-only permissions:
+                - Code (Read only)
+                - Work Items (Read, Write)
+                - Project and Team (Read)
+                
+                ---
+                
+                ✅ Click **Resume** to START AZURE BOARDS INTEGRATION
+                ❌ Click **Reject** to skip Boards integration
+              onTimeout: 'reject'
+      
       - job: IntegrateBoards
         displayName: 'Integrate Azure Boards with GitHub'
+        dependsOn: WaitForApprovalToIntegrateBoards
+        condition: succeeded()
         steps:
           - checkout: self
           
@@ -489,8 +529,9 @@ stages:
               filePath: 'bash/5_azure_boards_integration.sh'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
-              # CRITICAL: Using AZURE_BOARDS_PAT - a separate token from migration stages
-              AZURE_BOARDS_PAT: $(AZURE_BOARDS_PAT)
+              # CRITICAL: Using ADO_PAT from azure-boards-integration-secrets variable group
+              # This is a DIFFERENT token than migration ADO_PAT with Boards-only scopes
+              ADO_PAT: $(ADO_PAT)
               GH_PAT: $(GH_PAT)
             timeoutInMinutes: 60
 
