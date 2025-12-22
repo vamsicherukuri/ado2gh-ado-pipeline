@@ -14,7 +14,15 @@ trigger: none
 #       - 5
 
 variables:
+  # Variable group for migration-related PAT tokens
+  # Contains: GH_TOKEN, ADO_PAT (for migration, readiness checks, validation, rewiring)
   - group: core-entauto-github-migration-secrets
+  
+  # Variable group for Azure Boards integration PAT token
+  # Contains: AZURE_BOARDS_PAT (separate token with limited Boards-only scopes)
+  # Required scopes: Code (Read), Work Items (Read, Write), Project and Team (Read)
+  - group: azure-boards-integration-secrets
+  
   - name: maxConcurrent
     value: 3  # Adjust based on your needs (1-5)
 
@@ -90,6 +98,7 @@ stages:
   - stage: MigrationReadinessCheck
     displayName: 'active pr & pipeline check'
     dependsOn: PrerequisiteValidation
+    # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
       - job: ReadinessCheck
         displayName: 'Run Readiness Check Script'
@@ -162,6 +171,7 @@ stages:
   - stage: Migration
     displayName: 'repo migration'
     dependsOn: MigrationReadinessCheck
+    # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
       - job: RunMigration
         displayName: 'Run Migration Script'
@@ -225,6 +235,7 @@ stages:
   - stage: PostMigrationValidation
     displayName: 'repo migration validation'
     dependsOn: Migration
+    # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
       - job: ValidationCheck
         displayName: 'Run Validation Script'
@@ -333,6 +344,7 @@ stages:
     displayName: 'pipeline rewiring'
     dependsOn: PostMigrationValidation
     condition: succeeded()
+    # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
       - job: RewirePipelines
         displayName: 'Run Pipeline Rewiring'
@@ -414,4 +426,94 @@ stages:
                 echo ""
                 echo "Check the rewiring-logs artifact for detailed results"
                 echo "Log files: pipeline-rewiring-*.txt"
+                echo "=========================================="
+
+  - stage: AzureBoardsIntegration
+    displayName: 'Azure Boards Integration'
+    dependsOn: PipelineRewiring
+    condition: succeeded()
+    # PAT Tokens Used: AZURE_BOARDS_PAT, GH_PAT (from azure-boards-integration-secrets)
+    # IMPORTANT: This stage uses a SEPARATE PAT token with limited Boards-only scopes
+    # DO NOT use ADO_PAT or migration tokens in this stage
+    jobs:
+      - job: IntegrateBoards
+        displayName: 'Integrate Azure Boards with GitHub'
+        steps:
+          - checkout: self
+          
+          - task: Bash@3
+            displayName: 'Install GitHub CLI'
+            inputs:
+              targetType: 'inline'
+              script: |
+                set -e
+                echo "Installing GitHub CLI..."
+                type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+                curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+                sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+                sudo apt update
+                sudo apt install gh -y
+                
+                echo ""
+                echo "✅ GitHub CLI installed:"
+                gh --version
+
+          - task: Bash@3
+            displayName: 'Install gh-ado2gh Extension'
+            inputs:
+              targetType: 'inline'
+              script: |
+                set -e
+                echo "Installing gh-ado2gh extension..."
+                gh extension install github/gh-ado2gh
+                
+                echo ""
+                echo "✅ Extension installed:"
+                gh extension list
+            env:
+              GH_TOKEN: $(GH_PAT)
+
+          - task: Bash@3
+            displayName: 'Make Azure Boards Integration Script Executable'
+            inputs:
+              targetType: 'inline'
+              script: |
+                chmod +x bash/5_azure_boards_integration.sh
+                echo "✅ Script permissions set"
+
+          - task: Bash@3
+            displayName: 'Execute Azure Boards Integration'
+            inputs:
+              targetType: 'filePath'
+              filePath: 'bash/5_azure_boards_integration.sh'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+            env:
+              # CRITICAL: Using AZURE_BOARDS_PAT - a separate token from migration stages
+              AZURE_BOARDS_PAT: $(AZURE_BOARDS_PAT)
+              GH_PAT: $(GH_PAT)
+            timeoutInMinutes: 60
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Azure Boards Integration Logs'
+            condition: always()
+            inputs:
+              PathtoPublish: '$(System.DefaultWorkingDirectory)'
+              ArtifactName: 'boards-integration-logs'
+              publishLocation: 'Container'
+            continueOnError: true
+
+          - task: Bash@3
+            displayName: 'Azure Boards Integration Summary'
+            condition: always()
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "=========================================="
+                echo "AZURE BOARDS INTEGRATION SUMMARY"
+                echo "=========================================="
+                echo "Build Number: $(Build.BuildNumber)"
+                echo ""
+                echo "Check the boards-integration-logs artifact for detailed results"
+                echo "Log file: azure-boards-integration-*.log"
                 echo "=========================================="
