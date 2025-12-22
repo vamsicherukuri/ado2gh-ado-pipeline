@@ -375,8 +375,17 @@ echo "[INFO] Wrote migration results with Migration_Status column: ${OUTPUT_CSV_
 # Exit with failure if any migrations failed
 if (( ${#FAILED[@]} > 0 )); then
   echo -e "\033[31m[ERROR] Migration completed with ${#FAILED[@]} failures\033[0m"
+  echo ""
+  echo "##[section]Failed Repositories:"
+  for repo in "${FAILED[@]}"; do
+    echo "##[error]  ❌ $repo"
+  done
+  echo ""
+  echo "##vso[task.logissue type=error]Migration failed: ${#FAILED[@]} of ${total_repos} repositories failed to migrate"
+  echo "##vso[task.complete result=Failed;]Migration completed with failures"
   exit 1
 fi
 
 echo -e "\033[32m[SUCCESS] All migrations completed successfully\033[0m"
+echo "##vso[task.logissue type=warning]All ${#MIGRATED[@]} repositories migrated successfully"
 exit 0
