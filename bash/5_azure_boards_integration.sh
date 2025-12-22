@@ -201,6 +201,39 @@ integrate_azure_boards() {
 }
 
 ################################################################################
+# CSV Parsing Helper
+################################################################################
+
+# Robust CSV line parser (quoted fields, escaped quotes)
+parse_csv_line() {
+  local line="$1"
+  local -a fields=()
+  local field="" in_quotes=false i char next
+  for ((i=0; i<${#line}; i++)); do
+    char="${line:$i:1}"
+    next="${line:$((i+1)):1}"
+    if [[ "${char}" == '"' ]]; then
+      if [[ "${in_quotes}" == true ]]; then
+        if [[ "${next}" == '"' ]]; then
+          field+='"'; : $((i++))
+        else
+          in_quotes=false
+        fi
+      else
+        in_quotes=true
+      fi
+    elif [[ "${char}" == ',' && "${in_quotes}" == false ]]; then
+      fields+=("${field}")
+      field=""
+    else
+      field+="${char}"
+    fi
+  done
+  fields+=("${field}")
+  printf '%s\n' "${fields[@]}"
+}
+
+################################################################################
 # Main Processing Logic
 ################################################################################
 
@@ -223,14 +256,18 @@ process_repositories() {
             continue
         fi
         
-        # Extract only the fields we need (columns 1, 2, 11, 12)
-        # First 2 columns are clean
-        ado_org=$(echo "$line" | cut -d',' -f1)
-        ado_team_project=$(echo "$line" | cut -d',' -f2)
+        # Parse CSV line properly handling quoted fields
+        mapfile -t fields < <(parse_csv_line "$line")
         
-        # Last 3 columns are clean - extract from end to avoid quoted field issues
-        github_org=$(echo "$line" | rev | cut -d',' -f3 | rev)
-        github_repo=$(echo "$line" | rev | cut -d',' -f2 | rev)
+        # Extract the fields we need by index (0-based)
+        # Column 1 = org (index 0)
+        # Column 2 = teamproject (index 1)
+        # Column 11 = github_org (index 10)
+        # Column 12 = github_repo (index 11)
+        ado_org="${fields[0]}"
+        ado_team_project="${fields[1]}"
+        github_org="${fields[10]}"
+        github_repo="${fields[11]}"
         
         # Skip if required fields are empty
         if [ -z "$ado_org" ] || [ -z "$ado_team_project" ] || [ -z "$github_org" ] || [ -z "$github_repo" ]; then
