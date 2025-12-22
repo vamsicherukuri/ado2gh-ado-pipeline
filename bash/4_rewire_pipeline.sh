@@ -278,6 +278,7 @@ while IFS= read -r line; do
     else
         FAILURE_COUNT=$((FAILURE_COUNT + 1))
         echo -e "${RED}      ❌ FAILED${NC}"
+        echo "##[error]Failed to rewire pipeline: $ADO_PROJECT/$ADO_PIPELINE"
         RESULTS+=("❌ FAILED | $ADO_PROJECT/$ADO_PIPELINE → $GITHUB_ORG/$GITHUB_REPO")
     fi
     
@@ -323,11 +324,17 @@ echo -e "\n${GRAY}📄 Log saved: $LOG_FILE${NC}"
 # ========================================
 if [ $FAILURE_COUNT -eq 0 ]; then
     echo -e "\n${GREEN}🎉 All pipelines rewired successfully!${NC}"
+    echo "##vso[task.logissue type=warning]All $SUCCESS_COUNT pipelines rewired successfully"
     exit 0
 elif [ $SUCCESS_COUNT -gt 0 ]; then
     echo -e "\n${YELLOW}⚠️  Partial success: $SUCCESS_COUNT succeeded, $FAILURE_COUNT failed${NC}"
+    echo "##[warning]Partial success: $SUCCESS_COUNT succeeded, $FAILURE_COUNT failed"
+    echo "##vso[task.logissue type=warning]Pipeline rewiring partial success: $FAILURE_COUNT failures"
     exit 0
 else
     echo -e "\n${RED}❌ All pipeline rewiring attempts failed${NC}"
+    echo "##[error]All pipeline rewiring attempts failed"
+    echo "##vso[task.logissue type=error]Pipeline rewiring failed: All $PIPELINE_COUNT pipelines failed"
+    echo "##vso[task.complete result=Failed;]Pipeline rewiring completed with failures"
     exit 1
 fi

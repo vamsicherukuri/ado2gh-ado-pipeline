@@ -19,8 +19,7 @@
 #   ./5_azure_boards_integration.sh
 ################################################################################
 
-set -e  # Exit on error
-set -u  # Exit on undefined variable
+set -euo pipefail
 
 # Color codes for output
 RED='\033[0;31m'
@@ -76,6 +75,7 @@ validate_prerequisites() {
     # Check if repos.csv exists
     if [ ! -f "bash/repos.csv" ]; then
         log_error "repos.csv not found at bash/repos.csv"
+        echo "##[error]repos.csv not found at bash/repos.csv"
         exit 1
     fi
     log_success "repos.csv found"
@@ -84,12 +84,14 @@ validate_prerequisites() {
     if [ -z "${ADO_PAT:-}" ]; then
         log_error "ADO_PAT environment variable is not set"
         log_info "This PAT requires: Code (Read), Work Items (Read, Write), Project and Team (Read)"
+        echo "##[error]ADO_PAT environment variable is not set"
         exit 1
     fi
     log_success "ADO_PAT is set"
     
     if [ -z "${GH_PAT:-}" ]; then
         log_error "GH_PAT environment variable is not set"
+        echo "##[error]GH_PAT environment variable is not set"
         exit 1
     fi
     log_success "GH_PAT is set"
@@ -268,12 +270,18 @@ print_summary() {
     
     if [ $FAILED_INTEGRATIONS -gt 0 ]; then
         log_warning "Some integrations failed. Please review the log file for details."
+        echo "##[error]Azure Boards integration failed for $FAILED_INTEGRATIONS repositories"
+        echo "##vso[task.logissue type=error]Boards integration failed: $FAILED_INTEGRATIONS of $TOTAL_REPOS repositories failed"
+        echo "##vso[task.complete result=Failed;]Azure Boards integration completed with failures"
         exit 1
     elif [ $TOTAL_REPOS -eq 0 ]; then
         log_warning "No repositories were processed."
+        echo "##[warning]No repositories were processed"
+        echo "##vso[task.logissue type=warning]Azure Boards integration: No repositories found to process"
         exit 1
     else
         log_success "Azure Boards integration completed successfully!"
+        echo "##vso[task.logissue type=warning]All $SUCCESSFUL_INTEGRATIONS repositories integrated successfully with Azure Boards"
     fi
 }
 

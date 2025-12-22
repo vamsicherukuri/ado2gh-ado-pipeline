@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # Log file with timestamp
 LOG_FILE="validation-log-$(date +%Y%m%d).txt"
+
+# Track validation results
+VALIDATION_FAILURES=0
+VALIDATION_SUCCESSES=0
 
 # Write log entry to file and stdout
 write_log() {
@@ -36,6 +41,8 @@ validate_migration() {
     local gh_branches
     gh_branches=$(gh api "/repos/$github_org/$github_repo/branches" --paginate 2>/dev/null) || {
         write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: Failed to fetch GitHub branches for $github_org/$github_repo"
+        echo "##[error]Failed to fetch GitHub branches for $github_org/$github_repo"
+        VALIDATION_FAILURES=$((VALIDATION_FAILURES + 1))
         return 1
     }
 
@@ -265,3 +272,14 @@ validate_from_csv() {
 
 # Or batch mode
 validate_from_csv "bash/repos.csv"
+
+# Exit with appropriate code based on validation results
+if [ $VALIDATION_FAILURES -gt 0 ]; then
+    echo "##[error]Post-migration validation failed for $VALIDATION_FAILURES repositories"
+    echo "##vso[task.logissue type=error]Validation failed: $VALIDATION_FAILURES repositories had validation errors"
+    echo "##vso[task.complete result=Failed;]Post-migration validation completed with failures"
+    exit 1
+else
+    echo "##vso[task.logissue type=warning]Post-migration validation completed successfully for all repositories"
+    exit 0
+fi

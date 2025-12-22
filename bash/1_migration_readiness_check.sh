@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 ADO_PAT="${ADO_PAT:-$1}"
 if [ -z "$ADO_PAT" ]; then
@@ -290,13 +291,25 @@ fi
 if [ "$hasFailures" = true ] && [ "$hasActiveItems" = false ]; then
     # Failures only (no active PR/build/release)
     echo -e "\n\033[31mValidation checks could not be completed due to API failures. Please review errors before proceeding.\033[0m\n"
+    echo "##[error]Validation checks failed due to API errors"
+    echo "##vso[task.logissue type=error]Migration readiness check failed: API errors prevented validation"
+    echo "##vso[task.complete result=Failed;]Readiness check completed with API failures"
+    exit 1
 elif [ "$hasFailures" = true ] && [ "$hasActiveItems" = true ]; then
     # Failures + active items
     echo -e "\n\033[33mActive items detected, but some validation checks failed. Review warnings and errors before proceeding.\033[0m\n"
+    echo "##[warning]Active items detected with some validation failures"
+    echo "##vso[task.logissue type=warning]Active PRs/pipelines found and some checks failed"
+    exit 0  # Allow manual review via approval gate
 elif [ "$hasFailures" = false ] && [ "$hasActiveItems" = true ]; then
     # Active items only (no failures)
     echo -e "\n\033[33mActive Pull request or pipelines found. Continue with migration if you have reviewed and are comfortable proceeding.\033[0m\n"
+    echo "##[warning]Active pull requests or pipelines detected"
+    echo "##vso[task.logissue type=warning]Active PRs/pipelines found - review before proceeding"
+    exit 0  # Allow manual review via approval gate
 else
     # Clean: no failures, no active items
     echo -e "\n\033[32mNo active pull requests or pipelines detected. You can proceed with migration.\033[0m\n"
+    echo "##vso[task.logissue type=warning]Migration readiness check passed - no active items detected"
+    exit 0
 fi
