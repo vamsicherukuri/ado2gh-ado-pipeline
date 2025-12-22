@@ -51,8 +51,8 @@ stages:
                 echo "CSV Header: $HEADER"
                 echo ""
                 
-                # Check for required columns
-                REQUIRED_COLUMNS=("github_org" "github_repo" "gh_repo_visibility")
+                # Check for required columns for migration
+                REQUIRED_COLUMNS=("org" "teamproject" "repo" "github_org" "github_repo" "gh_repo_visibility")
                 MISSING_COLUMNS=()
                 
                 for col in "${REQUIRED_COLUMNS[@]}"; do

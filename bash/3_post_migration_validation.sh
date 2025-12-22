@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Log file with timestamp
 LOG_FILE="validation-log-$(date +%Y%m%d).txt"

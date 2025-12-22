@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ################################################################################
 # Azure Boards Integration Script - ADO to GitHub Enterprise (GHE)

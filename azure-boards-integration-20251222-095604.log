@@ -1,0 +1,13 @@
+
+==========================================================================
+[0;34mAZURE BOARDS INTEGRATION - ADO TO GHE[0m
+==========================================================================
+[0;34m[INFO][0m Script started at: Mon Dec 22 09:56:04 EST 2025
+[0;34m[INFO][0m Log file: azure-boards-integration-20251222-095604.log
+
+==========================================================================
+[0;34mVALIDATING PREREQUISITES[0m
+==========================================================================
+[0;32m[SUCCESS][0m repos.csv found
+[0;31m[ERROR][0m AZURE_BOARDS_PAT environment variable is not set
+[0;34m[INFO][0m This PAT requires: Code (Read), Work Items (Read, Write), Project and Team (Read)
