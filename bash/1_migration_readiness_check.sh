@@ -51,6 +51,7 @@ parse_csv_line() {
     local field=""
     local in_quotes=false
     local i
+    local char
     
     for ((i=0; i<${#line}; i++)); do
         char="${line:$i:1}"
