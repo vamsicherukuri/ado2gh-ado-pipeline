@@ -124,6 +124,40 @@ stages:
               GH_TOKEN: $(GH_TOKEN)
               GH_PAT: $(GH_TOKEN)
               ADO_PAT: $(ADO_PAT)
+      
+      - job: WaitForApprovalToMigrate
+        displayName: '⏸️ Approve to START MIGRATION'
+        dependsOn: ReadinessCheck
+        condition: succeeded()
+        pool: server
+        timeoutInMinutes: 1440
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Review Readiness & Approve Migration'
+            inputs:
+              notifyUsers: '$(Build.RequestedForEmail)'
+              instructions: |
+                ## 📋 Active PR & Pipeline Check COMPLETED
+                
+                ⚠️ **IMPORTANT**: The next stage will migrate repositories to GitHub.
+                
+                ### 📊 What to Review
+                1. Check the readiness check logs above
+                2. Verify all repositories are accessible
+                3. Confirm GitHub organizations exist
+                4. Ensure permissions are validated
+                
+                ### ⏭️ Next Stage: Repo Migration
+                This will:
+                - Migrate repositories to GitHub
+                - Transfer Git history
+                - Create GitHub repositories
+                
+                ---
+                
+                ✅ Click **Resume** to START MIGRATION
+                ❌ Click **Reject** to stop the pipeline
+              onTimeout: 'reject'
 
   - stage: Migration
     displayName: 'repo migration'
