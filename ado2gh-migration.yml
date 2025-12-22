@@ -1,27 +1,9 @@
 trigger: none
 
-# Uncomment to enable manual trigger with parameters
-# parameters:
-#   - name: maxConcurrent
-#     displayName: 'Maximum Concurrent Migrations'
-#     type: number
-#     default: 3
-#     values:
-#       - 1
-#       - 2
-#       - 3
-#       - 4
-#       - 5
-
 variables:
-  # Variable group for migration-related PAT tokens
+  # Variable group for migration-related PAT tokens (Stages 1-5)
   # Contains: GH_TOKEN, ADO_PAT (for migration, readiness checks, validation, rewiring)
   - group: core-entauto-github-migration-secrets
-  
-  # Variable group for Azure Boards integration PAT tokens
-  # Contains: GH_PAT, ADO_PAT (separate token with limited Boards-only scopes)
-  # Required scopes for ADO_PAT: Code (Read), Work Items (Read, Write), Project and Team (Read)
-  - group: azure-boards-integration-secrets
   
   - name: maxConcurrent
     value: 3  # Adjust based on your needs (1-5)
@@ -131,7 +113,6 @@ stages:
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               GH_TOKEN: $(GH_TOKEN)
-              GH_PAT: $(GH_TOKEN)
               ADO_PAT: $(ADO_PAT)
       
       - job: WaitForApprovalToMigrate
@@ -219,7 +200,6 @@ stages:
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               GH_TOKEN: $(GH_TOKEN)
-              GH_PAT: $(GH_TOKEN)
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 120  # 2 hours timeout for large migrations
 
@@ -268,7 +248,6 @@ stages:
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               GH_TOKEN: $(GH_TOKEN)
-              GH_PAT: $(GH_TOKEN)
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 60
 
@@ -400,7 +379,6 @@ stages:
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               GH_TOKEN: $(GH_TOKEN)
-              GH_PAT: $(GH_TOKEN)
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 60
 
@@ -435,6 +413,11 @@ stages:
     # PAT Tokens Used: GH_PAT, ADO_PAT (from azure-boards-integration-secrets)
     # IMPORTANT: This stage uses a SEPARATE variable group with ADO_PAT having limited Boards-only scopes
     # This is NOT the same ADO_PAT used in migration stages
+    variables:
+      # Variable group for Azure Boards integration PAT tokens (Stage 6 only)
+      # Contains: GH_PAT, ADO_PAT (separate token with limited Boards-only scopes)
+      # Required scopes for ADO_PAT: Code (Read), Work Items (Read, Write), Project and Team (Read)
+      - group: azure-boards-integration-secrets
     jobs:
       - job: WaitForApprovalToIntegrateBoards
         displayName: '⏸️ Approve to START AZURE BOARDS INTEGRATION'
