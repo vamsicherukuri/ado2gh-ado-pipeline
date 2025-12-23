@@ -1,6 +1,12 @@
 # 🚀 ADO to GitHub Migration Pipeline
 
-This repository provides an automated Azure DevOps pipeline designed to perform end-to-end migration from Azure DevOps to GitHub, including readiness checks, repository migration, validation, pipeline rewiring, and Azure Boards integration. The pipeline uses the gh ado2gh extension and implements security best practices with separate PAT tokens.
+Migrating repositories from Azure DevOps (ADO) to GitHub Enterprise (GHE) using a hybrid approach is inherently challenging due to the multiple stages involved in the end-to-end process. This includes prerequisite checks such as installing the GitHub CLI and the ado2gh extension, authenticating with GitHub, and performing pre-migration validations (for example, identifying in-flight pull requests or running pipelines that could be missed during migration). It then proceeds through the actual repository migration, post-migration validation, ADO pipeline rewiring, Azure Boards integration, and finally disabling the ADO repository to prevent further developer usage after a successful migration.
+
+Even with automation scripts, this process can be cumbersome and difficult to scale, especially for organizations managing tens of thousands of repositories. I encountered a scenario where an organization needed to migrate nearly 20,000 repositories, making it impractical to rely solely on scripts to execute both migration and post-migration steps in a centralized manner.
+
+To address this scalability challenge, I designed a stage-based Azure DevOps YAML pipeline that encapsulates the entire migration lifecycle from prerequisite validation through successful migration, post-migration rewiring, Azure Boards integration, and safe decommissioning of the ADO repository. This pipeline enables a decentralized, self-service migration model, where individual teams can independently migrate only the repositories they own.
+
+By distributing ownership to teams and allowing migrations to run in parallel, this approach scales effectively for large enterprises, avoids centralized bottlenecks and big-bang migrations, and makes the overall ADO-to-GHE migration process more manageable, controlled, and resilient.
 
 ## What This Pipeline Does
 
