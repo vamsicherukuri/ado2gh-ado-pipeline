@@ -4,14 +4,11 @@
 # Azure Boards Integration Script - ADO to GitHub Enterprise (GHE)
 # 
 # This script integrates Azure Boards with GitHub repositories that have been
-# migrated to GitHub Enterprise. It validates GitHub connections and executes
-# the gh ado2gh integrate-boards command for each repository.
+# migrated to GitHub Enterprise using the gh ado2gh integrate-boards command.
 #
 # Prerequisites:
 #   - repos.csv with required columns (org, teamproject, github_org, github_repo)
-#   - ADO_PAT environment variable (Azure DevOps PAT with Boards-only scopes)
-#     Required scopes: Code (Read), Work Items (Read, Write), Project and Team (Read)
-#     IMPORTANT: This should be a SEPARATE token from migration ADO_PAT
+#   - ADO_PAT environment variable (Azure DevOps PAT with Work Items scope)
 #   - GH_PAT environment variable (GitHub Personal Access Token)
 #   - gh CLI installed with ado2gh extension
 #
@@ -30,8 +27,6 @@ NC='\033[0m' # No Color
 
 # Counters for summary
 TOTAL_REPOS=0
-VALIDATED_CONNECTIONS=0
-SKIPPED_NO_CONNECTION=0
 SUCCESSFUL_INTEGRATIONS=0
 FAILED_INTEGRATIONS=0
 
@@ -48,10 +43,6 @@ log_info() {
 
 log_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "$LOG_FILE"
 }
 
 log_error() {
@@ -83,7 +74,6 @@ validate_prerequisites() {
     # Check for required environment variables
     if [ -z "${ADO_PAT:-}" ]; then
         log_error "ADO_PAT environment variable is not set"
-        log_info "This PAT requires: Code (Read), Work Items (Read, Write), Project and Team (Read)"
         echo "##[error]ADO_PAT environment variable is not set"
         exit 1
     fi
@@ -103,9 +93,6 @@ validate_prerequisites() {
     fi
     log_success "gh CLI is installed: $(gh --version | head -n 1)"
     
-    # Note: gh ado2gh extension installation is handled by the pipeline
-    # No need to validate here as it's a pipeline prerequisite
-    
     # Validate CSV headers
     HEADER=$(head -n 1 bash/repos.csv)
     REQUIRED_COLUMNS=("org" "teamproject" "github_org" "github_repo")
@@ -117,51 +104,6 @@ validate_prerequisites() {
         fi
     done
     log_success "All required columns present in repos.csv"
-}
-
-################################################################################
-# GitHub Connection Validation
-################################################################################
-
-validate_github_connection() {
-    local ado_org="$1"
-    local ado_project="$2"
-    local github_org="$3"
-    local github_repo="$4"
-    
-    log_info "Validating GitHub connection for ${github_org}/${github_repo}"
-    
-    # Construct API URL
-    local api_url="https://dev.azure.com/${ado_org}/${ado_project}/_apis/serviceendpoint/endpoints?api-version=7.1-preview.1"
-    
-    # Call Azure DevOps REST API
-    local response
-    response=$(curl -s -u ":${ADO_PAT}" \
-        -H "Content-Type: application/json" \
-        "${api_url}")
-    
-    # Check if response contains error
-    if echo "$response" | grep -q '"message"'; then
-        log_error "API Error: $(echo "$response" | jq -r '.message' 2>/dev/null || echo "$response")"
-        return 1
-    fi
-    
-    # Check if any GitHub service connection exists
-    local connection_count
-    connection_count=$(echo "$response" | jq -r '[.value[] | select(.type == "github" or .type == "githubenterprise")] | length' 2>/dev/null || echo "0")
-    
-    if [ "$connection_count" -eq 0 ]; then
-        log_warning "No GitHub connections found in project ${ado_project}"
-        return 1
-    fi
-    
-    # Check for specific GitHub org/repo connection (optional - depends on service endpoint naming)
-    log_success "Found ${connection_count} GitHub service connection(s) in project ${ado_project}"
-    
-    # Log connection details
-    echo "$response" | jq -r '.value[] | select(.type == "github" or .type == "githubenterprise") | "  - Connection: \(.name) | Type: \(.type)"' 2>/dev/null >> "$LOG_FILE" || true
-    
-    return 0
 }
 
 ################################################################################
@@ -181,21 +123,17 @@ integrate_azure_boards() {
     export ADO_TOKEN="${ADO_PAT}"
     
     # Execute gh ado2gh integrate-boards command
-    local integration_log="integration-${github_org}-${github_repo}-$(date +%Y%m%d-%H%M%S).log"
-    
     if gh ado2gh integrate-boards \
         --github-org "${github_org}" \
         --github-repo "${github_repo}" \
         --ado-org "${ado_org}" \
         --ado-team-project "${ado_project}" \
-        2>&1 | tee "${integration_log}"; then
+        2>&1 | tee -a "$LOG_FILE"; then
         
         log_success "Azure Boards integration completed for ${github_org}/${github_repo}"
-        cat "${integration_log}" >> "$LOG_FILE"
         return 0
     else
         log_error "Azure Boards integration failed for ${github_org}/${github_repo}"
-        cat "${integration_log}" >> "$LOG_FILE"
         return 1
     fi
 }
@@ -257,7 +195,7 @@ process_repositories() {
         fi
         
         # Parse CSV line properly handling quoted fields
-        # CSV now has 6 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility
+        # CSV has 6 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility
         mapfile -t fields < <(parse_csv_line "$line")
         
         ado_org="${fields[0]}"
@@ -278,19 +216,11 @@ process_repositories() {
         log_info "GitHub Org: ${github_org}"
         log_info "GitHub Repo: ${github_repo}"
         
-        # Validate GitHub connection
-        if validate_github_connection "$ado_org" "$ado_team_project" "$github_org" "$github_repo"; then
-            VALIDATED_CONNECTIONS=$((VALIDATED_CONNECTIONS + 1))
-            
-            # Attempt Azure Boards integration
-            if integrate_azure_boards "$ado_org" "$ado_team_project" "$github_org" "$github_repo"; then
-                SUCCESSFUL_INTEGRATIONS=$((SUCCESSFUL_INTEGRATIONS + 1))
-            else
-                FAILED_INTEGRATIONS=$((FAILED_INTEGRATIONS + 1))
-            fi
+        # Integrate Azure Boards
+        if integrate_azure_boards "$ado_org" "$ado_team_project" "$github_org" "$github_repo"; then
+            SUCCESSFUL_INTEGRATIONS=$((SUCCESSFUL_INTEGRATIONS + 1))
         else
-            log_warning "Skipping Azure Boards integration - no valid GitHub connection found"
-            SKIPPED_NO_CONNECTION=$((SKIPPED_NO_CONNECTION + 1))
+            FAILED_INTEGRATIONS=$((FAILED_INTEGRATIONS + 1))
         fi
         
         echo "" | tee -a "$LOG_FILE"
@@ -307,8 +237,6 @@ print_summary() {
     
     echo "" | tee -a "$LOG_FILE"
     echo "Total Repositories Processed:    ${TOTAL_REPOS}" | tee -a "$LOG_FILE"
-    echo "Validated GitHub Connections:    ${VALIDATED_CONNECTIONS}" | tee -a "$LOG_FILE"
-    echo "Skipped (No Connection):         ${SKIPPED_NO_CONNECTION}" | tee -a "$LOG_FILE"
     echo "Successful Integrations:         ${SUCCESSFUL_INTEGRATIONS}" | tee -a "$LOG_FILE"
     echo "Failed Integrations:             ${FAILED_INTEGRATIONS}" | tee -a "$LOG_FILE"
     echo "" | tee -a "$LOG_FILE"
@@ -316,18 +244,16 @@ print_summary() {
     echo "==========================================================================" | tee -a "$LOG_FILE"
     
     if [ $FAILED_INTEGRATIONS -gt 0 ]; then
-        log_warning "Some integrations failed. Please review the log file for details."
+        log_error "Some integrations failed. Please review the log file for details."
         echo "##[error]Azure Boards integration failed for $FAILED_INTEGRATIONS repositories"
-        echo "##vso[task.logissue type=error]Boards integration failed: $FAILED_INTEGRATIONS of $TOTAL_REPOS repositories failed"
         echo "##vso[task.complete result=Failed;]Azure Boards integration completed with failures"
         exit 1
     elif [ $TOTAL_REPOS -eq 0 ]; then
-        log_warning "No repositories were processed."
-        echo "##[warning]No repositories were processed"
-        echo "##vso[task.logissue type=warning]Azure Boards integration: No repositories found to process"
+        log_error "No repositories were processed."
+        echo "##[error]No repositories were processed"
         exit 1
     else
-        log_success "Azure Boards integration completed successfully!"
+        log_success "Azure Boards integration completed successfully for all $SUCCESSFUL_INTEGRATIONS repositories!"
         echo "##vso[task.logissue type=warning]All $SUCCESSFUL_INTEGRATIONS repositories integrated successfully with Azure Boards"
     fi
 }
