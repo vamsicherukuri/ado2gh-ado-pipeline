@@ -4,22 +4,21 @@
 # Azure Boards Integration Script - ADO to GitHub Enterprise (GHE)
 # 
 # This script integrates Azure Boards with GitHub repositories that have been
-# migrated to GitHub Enterprise using the gh ado2gh integrate-boards command.
+# migrated to GitHub Enterprise.
 #
 # Prerequisites:
 #   - repos.csv with required columns (org, teamproject, github_org, github_repo)
-#   - ADO_PAT environment variable (Azure DevOps PAT with Work Items scope)
+#   - ADO_PAT environment variable (Azure DevOps PAT with Boards scopes)
 #   - GH_PAT environment variable (GitHub Personal Access Token)
 #   - gh CLI installed with ado2gh extension
 #
 # Usage:
-#   ./5_azure_boards_integration.sh
+#   ./5_boards_integration.sh
 ################################################################################
 
 set -euo pipefail
 
 # Color codes for output
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
@@ -45,8 +44,12 @@ log_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1" | tee -a "$LOG_FILE"
 }
 
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "$LOG_FILE"
+}
+
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
+    echo -e "${YELLOW}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
 }
 
 log_section() {
@@ -94,15 +97,10 @@ validate_prerequisites() {
     log_success "gh CLI is installed: $(gh --version | head -n 1)"
     
     # Validate CSV headers
-    HEADER=$(head -n 1 bash/repos.csv)
-    REQUIRED_COLUMNS=("org" "teamproject" "github_org" "github_repo")
-    
-    for col in "${REQUIRED_COLUMNS[@]}"; do
-        if ! echo "$HEADER" | grep -q "$col"; then
-            log_error "Missing required column in repos.csv: $col"
-            exit 1
-        fi
-    done
+    if ! head -n 1 bash/repos.csv | grep -q "org.*teamproject.*github_org.*github_repo"; then
+        log_error "repos.csv missing required columns: org, teamproject, github_org, github_repo"
+        exit 1
+    fi
     log_success "All required columns present in repos.csv"
 }
 
@@ -128,7 +126,7 @@ integrate_azure_boards() {
         --github-repo "${github_repo}" \
         --ado-org "${ado_org}" \
         --ado-team-project "${ado_project}" \
-        2>&1 | tee -a "$LOG_FILE"; then
+        >> "$LOG_FILE" 2>&1; then
         
         log_success "Azure Boards integration completed for ${github_org}/${github_repo}"
         return 0
@@ -139,49 +137,15 @@ integrate_azure_boards() {
 }
 
 ################################################################################
-# CSV Parsing Helper
-################################################################################
-
-# Robust CSV line parser (quoted fields, escaped quotes)
-parse_csv_line() {
-  local line="$1"
-  local -a fields=()
-  local field="" in_quotes=false i char next
-  for ((i=0; i<${#line}; i++)); do
-    char="${line:$i:1}"
-    next="${line:$((i+1)):1}"
-    if [[ "${char}" == '"' ]]; then
-      if [[ "${in_quotes}" == true ]]; then
-        if [[ "${next}" == '"' ]]; then
-          field+='"'; : $((i++))
-        else
-          in_quotes=false
-        fi
-      else
-        in_quotes=true
-      fi
-    elif [[ "${char}" == ',' && "${in_quotes}" == false ]]; then
-      fields+=("${field}")
-      field=""
-    else
-      field+="${char}"
-    fi
-  done
-  fields+=("${field}")
-  printf '%s\n' "${fields[@]}"
-}
-
-################################################################################
 # Main Processing Logic
 ################################################################################
 
 process_repositories() {
     log_section "PROCESSING REPOSITORIES FROM repos.csv"
     
-    # Read CSV file (skip header)
     local line_number=0
     
-    while IFS= read -r line; do
+    while IFS=',' read -r ado_org ado_team_project _ github_org github_repo _; do
         : $((line_number++))
         
         # Skip header row
@@ -189,21 +153,7 @@ process_repositories() {
             continue
         fi
         
-        # Skip empty lines
-        if [ -z "$line" ]; then
-            continue
-        fi
-        
-        # Parse CSV line properly handling quoted fields
-        # CSV has 6 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility
-        mapfile -t fields < <(parse_csv_line "$line")
-        
-        ado_org="${fields[0]}"
-        ado_team_project="${fields[1]}"
-        github_org="${fields[3]}"
-        github_repo="${fields[4]}"
-        
-        # Skip if required fields are empty
+        # Skip empty lines or lines with missing required fields
         if [ -z "$ado_org" ] || [ -z "$ado_team_project" ] || [ -z "$github_org" ] || [ -z "$github_repo" ]; then
             continue
         fi
@@ -216,7 +166,7 @@ process_repositories() {
         log_info "GitHub Org: ${github_org}"
         log_info "GitHub Repo: ${github_repo}"
         
-        # Integrate Azure Boards
+        # Execute Azure Boards integration
         if integrate_azure_boards "$ado_org" "$ado_team_project" "$github_org" "$github_repo"; then
             SUCCESSFUL_INTEGRATIONS=$((SUCCESSFUL_INTEGRATIONS + 1))
         else
@@ -244,16 +194,18 @@ print_summary() {
     echo "==========================================================================" | tee -a "$LOG_FILE"
     
     if [ $FAILED_INTEGRATIONS -gt 0 ]; then
-        log_error "Some integrations failed. Please review the log file for details."
+        log_warning "Some integrations failed. Please review the log file for details."
         echo "##[error]Azure Boards integration failed for $FAILED_INTEGRATIONS repositories"
+        echo "##vso[task.logissue type=error]Boards integration failed: $FAILED_INTEGRATIONS of $TOTAL_REPOS repositories failed"
         echo "##vso[task.complete result=Failed;]Azure Boards integration completed with failures"
         exit 1
     elif [ $TOTAL_REPOS -eq 0 ]; then
-        log_error "No repositories were processed."
-        echo "##[error]No repositories were processed"
+        log_warning "No repositories were processed."
+        echo "##[warning]No repositories were processed"
+        echo "##vso[task.logissue type=warning]Azure Boards integration: No repositories found to process"
         exit 1
     else
-        log_success "Azure Boards integration completed successfully for all $SUCCESSFUL_INTEGRATIONS repositories!"
+        log_success "Azure Boards integration completed successfully!"
         echo "##vso[task.logissue type=warning]All $SUCCESSFUL_INTEGRATIONS repositories integrated successfully with Azure Boards"
     fi
 }

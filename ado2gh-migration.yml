@@ -506,14 +506,14 @@ stages:
             inputs:
               targetType: 'inline'
               script: |
-                chmod +x bash/5_azure_boards_integration.sh
+                chmod +x bash/5_boards_integration.sh
                 echo "✅ Script permissions set"
 
           - task: Bash@3
             displayName: 'Execute Azure Boards Integration'
             inputs:
               targetType: 'filePath'
-              filePath: 'bash/5_azure_boards_integration.sh'
+              filePath: 'bash/5_boards_integration.sh'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               # CRITICAL: Using ADO_PAT from azure-boards-integration-secrets variable group
