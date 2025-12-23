@@ -151,7 +151,7 @@ stages:
               onTimeout: 'reject'
 
   - stage: Migration
-    displayName: 'repo migration'
+    displayName: 'Repo Migration'
     dependsOn: MigrationReadinessCheck
     # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
@@ -323,7 +323,7 @@ stages:
               onTimeout: 'reject'
 
   - stage: PipelineRewiring
-    displayName: 'pipeline rewiring'
+    displayName: 'Pipeline Rewiring'
     dependsOn: PostMigrationValidation
     condition: succeeded()
     # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
