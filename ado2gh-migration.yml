@@ -13,7 +13,7 @@ pool:
 
 stages:
   - stage: PrerequisiteValidation
-    displayName: 'prereq Validation'
+    displayName: 'Prerequisite Validation'
     jobs:
       - job: ValidatePrerequisites
         displayName: 'Check Prerequisites'
@@ -78,7 +78,7 @@ stages:
                 echo "=========================================="
 
   - stage: MigrationReadinessCheck
-    displayName: 'active pr & pipeline check'
+    displayName: 'PR & Pipeline Check'
     dependsOn: PrerequisiteValidation
     # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
@@ -215,7 +215,7 @@ stages:
             continueOnError: true
 
   - stage: PostMigrationValidation
-    displayName: 'repo migration validation'
+    displayName: 'Migration Validation'
     dependsOn: Migration
     # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
@@ -411,7 +411,7 @@ stages:
                 echo "=========================================="
 
   - stage: AzureBoardsIntegration
-    displayName: 'Azure Boards Integration'
+    displayName: 'Boards Integration'
     dependsOn: PipelineRewiring
     condition: succeeded()
     # PAT Tokens Used: GH_PAT, ADO_PAT (from azure-boards-integration-secrets)
