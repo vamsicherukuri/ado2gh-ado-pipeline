@@ -1,7 +1,6 @@
 # 🚀 ADO to GitHub Migration Pipeline
 
-Migrating repositories from Azure DevOps (ADO) to GitHub Enterprise (GHE) using a hybrid approach is inherently challenging due to the multiple stages involved in the end-to-end process. This includes prerequisite checks such as installing the GitHub CLI and the ado2gh extension, authenticating with GitHub, and performing pre-migration validations (for example, identifying in-flight pull requests or running pipelines that could be missed during migration). It then proceeds through the actual repository migration, post-migration validation, ADO pipeline rewiring, Azure Boards integration, and finally disabling the ADO repository to prevent further developer usage after a successful migration.
-
+Migrating repositories from Azure DevOps (ADO) to GitHub Enterprise (GHE) using a hybrid approach is inherently challenging due to the multiple stages involved in the end-to-end process. 
 Even with automation scripts, this process can be cumbersome and difficult to scale, especially for organizations managing tens of thousands of repositories. I encountered a scenario where an organization needed to migrate nearly 20,000 repositories, making it impractical to rely solely on scripts to execute both migration and post-migration steps in a centralized manner.
 
 To address this scalability challenge, I designed a stage-based Azure DevOps YAML pipeline that encapsulates the entire migration lifecycle from prerequisite validation through successful migration, post-migration rewiring, Azure Boards integration, and safe decommissioning of the ADO repository. This pipeline enables a decentralized, self-service migration model, where individual teams can independently migrate only the repositories they own.
@@ -114,7 +113,9 @@ Executes `5_boards_integration.sh` to:
 
 Before running this pipeline, ensure the following requirements are met:
 
-### 1. Variable Group Configuration ⚠️ MANDATORY
+### 1. OS Required: Ubuntu Linux (latest) (vmImage: 'ubuntu-latest')
+
+### 2. Variable Group Configuration ⚠️ MANDATORY
 
 This pipeline requires **TWO separate variable groups** for security isolation:
 
@@ -168,7 +169,7 @@ After creating the variable group, you should see:
 - Both variables should show 🔒 (locked) indicating they are secret
 
 
-### 2. Repository CSV File
+### 3. Repository CSV File
 The `bash/repos.csv` file must exist with the following structure:
 
 **Required columns:**
@@ -179,7 +180,7 @@ The `bash/repos.csv` file must exist with the following structure:
 - `github_repo` - Target GitHub repository name
 - `gh_repo_visibility` - Repository visibility: `private`, `public`, or `internal`
 
-### 5. Pipeline CSV File (Required for Stage 5)
+### 4. Pipeline CSV File (Required for Stage 5)
 The `bash/pipelines.csv` file must exist with the following structure for pipeline rewiring:
 
 **Required columns:**
