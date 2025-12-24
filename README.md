@@ -56,6 +56,7 @@ flowchart TB
     style End3 fill:#ffcccc
     style Success fill:#e1ffe1
 ```
+> **⚠️ IMPORTANT**: Manual approval gates are enforced after Stage 2, Stage 4, and Stage 5. The pipeline remains paused at the preceding stage until approval is provided. Each of these stages must be manually validated before proceeding to the next stage.
 
 ### Stage 1: Prerequisite Validation
 - Verifies that `bash/repos.csv` file exists and is not empty
