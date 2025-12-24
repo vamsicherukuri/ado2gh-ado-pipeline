@@ -75,29 +75,30 @@ Executes `1_pr_pipeline_check.sh` to:
 - Detectes active builds, releases pipelines, and pull requests
 - Identifies potential blockers before migration begins
 - Generates a readiness report
-- **⏸️ Manual Approval Gate:** Review readiness before proceeding to migration
+- **⏸️ User approval:** Review readiness before proceeding to next stage 3: Repository Migration
 
-### Stage 3: Repo Migration
+### Stage 3: Repository Migration
 Executes `2_migration.sh` to perform the actual migration:
 
 - Installs GitHub CLI and `gh-ado2gh` extension
-- Executes parallel migrations (configurable: 1-5 concurrent migrations)
+- Executes parallel migrations (configurable: 1-5 concurrent migrations in the script)
 - Migrates repository content, branches, and commit history
 - Generates migration status logs for each repository
 - Creates a summary CSV with migration results
 
-### Stage 4: Repo Migration Validation (Manual Approval Required)
+### Stage 4: Repository Migration Validation
 Executes `3_post_migration_validation.sh` to:
 
-- Validates each migrated repository in GitHub
-- Compares branches between source (ADO) and target (GitHub)
-- Verifies repository accessibility and structure
+-Branch Comparison - Compares branch counts between ADO and GitHub, identifies any missing branches on either side.
+-Commit Validation - For each branch, verifies the latest commit SHA matches between ADO and GitHub to ensure complete migration.
+-Commit Count Verification - Compares total commit counts per branch between source (ADO) and target (GitHub) to detect any missing commits.
 - Generates validation logs with detailed results
-- **⏸️ Manual Approval Gate:** Review validation before rewiring pipelines
+- **⏸️ User approval:** Review validation before proceeding to next stage 5: Pipeline Rewiring
 
 ### Stage 5: Pipeline Rewiring
 Executes `4_rewire_pipeline.sh` to:
 
+- Validate github and ADO tokens.
 - Reads pipeline configurations from `bash/pipelines.csv`
 - Rewires Azure DevOps pipelines to use GitHub repositories
 - Updates service connections and repository sources
@@ -108,11 +109,9 @@ Executes `4_rewire_pipeline.sh` to:
 - **⏸️ Manual Approval Gate:** Review rewiring before Boards integration
 Executes `5_boards_integration.sh` to:
 
-- Validates GitHub service connections via ADO REST API
+- Validates github and ADO PAT tokens (for this stage gtihub PAT tokens should created with the follwing scope: repo; admin:repo_hook; read:user; user:email)
 - Integrates Azure Boards with migrated GitHub repositories
 - Enables AB# work item linking in GitHub commits/PRs
-- Configures bidirectional synchronization
-- Uses separate Boards-only PAT token for security isolation
 
 ## ⚙️ Prerequisites
 
