@@ -8,6 +8,7 @@ To address this scalability challenge, I designed a stage-based Azure DevOps YAM
 By distributing ownership to teams and allowing migrations to run in parallel, this approach scales effectively for large enterprises, avoids centralized bottlenecks and big-bang migrations, and makes the overall ADO-to-GHE migration process more manageable, controlled, and resilient.
 
 ## Pipeline stages overview
+This pipeline is designed to run on Ubuntu Linux using Microsoft-hosted Azure Pipelines agents with the ubuntu-latest VM image. The pipeline executes 6 stages sequentially, where each stage runs on a completely fresh Ubuntu runner with no state carried over from previous stages.
 ```mermaid
 ---
 config:
