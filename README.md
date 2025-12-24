@@ -101,9 +101,9 @@ Executes `4_rewire_pipeline.sh` to:
 - Updates service connections and repository sources
 - Validates pipeline configurations
 - Generates rewiring logs
+- - **⏸️ User approval:** Review validation before proceeding to next stage 6: boards Integration
 
 ### Stage 6: Azure Boards Integration
-- **⏸️ Manual Approval Gate:** Review rewiring before Boards integration
 Executes `5_boards_integration.sh` to:
 
 - Validates github and ADO PAT tokens (for this stage github PAT tokens should created with the follwing scope: repo; admin:repo_hook; read:user; user:email).
