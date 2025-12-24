@@ -68,11 +68,11 @@ The **ADO to GitHub Migration Pipeline** automates the complete migration proces
   - `github_org`, `github_repo`, `gh_repo_visibility`
 - Displays the number of repositories to be migrated
 
-### Stage 2: Active PR & Pipeline Check (Manual Approval Required)
-Executes `1_migration_readiness_check.sh` to:
+### Stage 2: Pre-migration check
+Executes `1_pr_pipeline_check.sh` to:
 
 - Scans source repositories for active pull requests
-- Checks for running builds and releases
+- Detectes active builds, releases pipelines, and pull requests
 - Identifies potential blockers before migration begins
 - Generates a readiness report
 - **⏸️ Manual Approval Gate:** Review readiness before proceeding to migration
