@@ -8,7 +8,7 @@ To address this scalability challenge, I designed a stage-based Azure DevOps YAM
 
 By distributing ownership to teams and allowing migrations to run in parallel, this approach scales effectively for large enterprises, avoids centralized bottlenecks and big-bang migrations, and makes the overall ADO-to-GHE migration process more manageable, controlled, and resilient.
 
-## Pipeline Architecture
+## pipeline stages overview
 ```mermaid
 ---
 config:
@@ -56,10 +56,6 @@ flowchart TB
     style End3 fill:#ffcccc
     style Success fill:#e1ffe1
 ```
-
-## What This Pipeline Does
-
-The **ADO to GitHub Migration Pipeline** automates the complete migration process from Azure DevOps repositories to GitHub in six sequential stages with three manual approval gates:
 
 ### Stage 1: Prerequisite Validation
 - Verifies that `bash/repos.csv` file exists and is not empty
@@ -109,9 +105,9 @@ Executes `4_rewire_pipeline.sh` to:
 - **⏸️ Manual Approval Gate:** Review rewiring before Boards integration
 Executes `5_boards_integration.sh` to:
 
-- Validates github and ADO PAT tokens (for this stage gtihub PAT tokens should created with the follwing scope: repo; admin:repo_hook; read:user; user:email)
-- Integrates Azure Boards with migrated GitHub repositories
-- Enables AB# work item linking in GitHub commits/PRs
+- Validates github and ADO PAT tokens (for this stage github PAT tokens should created with the follwing scope: repo; admin:repo_hook; read:user; user:email).
+- Integrates Azure Boards with migrated GitHub repositories.
+- Enables AB# work item linking in GitHub commits/PRs.
 
 ## ⚙️ Prerequisites
 
@@ -123,7 +119,7 @@ This pipeline requires **TWO separate variable groups** for security isolation:
 
 #### A. Migration Variable Group: `core-entauto-github-migration-secrets`
 
-Used in Stages 1-5 (Validation, Readiness, Migration, Validation, Rewiring)
+Stages 1–5 (Prerequisites, Pre-Migration Checks, Migration, Validation, and Rewiring) use one set of GitHub PATs, while Stage 6 (Boards Integration) requires separate GitHub PATs with different scopes.
 
 | Variable Name | Description | Required |
 |--------------|-------------|----------|
@@ -139,9 +135,7 @@ Used in Stage 6 (Azure Boards Integration) - **SEPARATE token with limited scope
 | `GH_PAT` | GitHub Personal Access Token with `repo`, `admin:org` scopes | ✅ Yes |  
 | `ADO_PAT` | Azure DevOps PAT with Code (Read only), Work Items (Read, Write), Project/Team (Read) - **DIFFERENT from migration ADO_PAT** | ✅ Yes |
 
-> **🔒 SECURITY NOTE**: The `ADO_PAT` in each variable group is a **different token** with different scopes. This follows the principle of least privilege. See [PAT_TOKEN_CONFIGURATION.md](PAT_TOKEN_CONFIGURATION.md) for detailed setup instructions.
-
-> **⚠️ IMPORTANT**: Both variable groups are **mandatory**. The pipeline will fail if they don't exist. Create them before running the pipeline for the first time.
+> **⚠️ IMPORTANT**: Both variable groups are required for the pipeline to run successfully. If either variable group does not exist, the pipeline will fail. Create them prior to the initial pipeline run. If variable groups are created with different names than those referenced above, the YAML must be updated accordingly.
 
 **Step-by-step instructions to create variable groups:**
 
@@ -158,21 +152,13 @@ Used in Stage 6 (Azure Boards Integration) - **SEPARATE token with limited scope
    - Click **Save**
 
 3. **Create the second variable group (Boards Integration):**
-   - Click the **+ Variable group** button again
-   - **Variable group name**: Enter `azure-boards-integration-secrets` (must match exactly)
-   - **Description**: "Boards-only PAT tokens for Azure Boards integration (Stage 6)"
-   - Click **+ Add** to add `GH_PAT` → paste token → click 🔒 to mark as secret
-   - Click **+ Add** to add `ADO_PAT` → paste Boards-only token → click 🔒 to mark as secret
-   - Click **Save**
 
-> **📖 Detailed Token Setup**: For complete instructions on creating separate PAT tokens with correct scopes, see [PAT_TOKEN_CONFIGURATION.md](PAT_TOKEN_CONFIGURATION.md)
-
-6. **Set permissions (if needed):**
+4. **Set permissions (if needed):**
    - Click **Pipeline permissions** tab
    - If the pipeline isn't automatically authorized, click **+** and add "ADO to GitHub Migration Pipeline"
    - This allows the pipeline to access the variable group
 
-7. **Save the variable group:**
+5. **Save the variable group:**
    - Click **Save** at the top
   
 After creating the variable group, you should see:
@@ -180,33 +166,9 @@ After creating the variable group, you should see:
 - 2 variables: `GH_TOKEN` (**secret**), `ADO_PAT` (**secret**)
 - Both variables should show 🔒 (locked) indicating they are secret
 
-### 2. GitHub Personal Access Token (PAT)
-Create a GitHub PAT with the following scopes:
-- `read:user` (Read ALL user profile data)
-- `admin:org` (Full control of orgs and teams, read and write org projects)
-- `repo` (Full control of private repositories)
-- `workflow` (Update GitHub Action workflows)
 
-**To create:**
-1. Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
-2. Click **Generate new token (classic)**
-3. Select the required scopes
-4. Copy the token (you won't see it again!)
-
-### 3. Azure DevOps Personal Access Token (PAT)
-Create an ADO PAT with **Full access** scope:
-1. Go to Azure DevOps → User settings → Personal access tokens
-2. Click **+ New Token**
-3. Set expiration and select **Full access**
-4. Copy the token
-
-### 4. Repository CSV File
+### 2. Repository CSV File
 The `bash/repos.csv` file must exist with the following structure:
-
-```csv
-org,teamproject,repo,url,last-push-date,pipeline-count,compressed-repo-size-in-bytes,most-active-contributor,pr-count,commits-past-year,github_org,github_repo,gh_repo_visibility
-contosodevopstest,sample-repo-testing,sample1,https://dev.azure.com/contosodevopstest/sample-repo-testing/_git/sample1,10/13/2025 0:00,5,"9,349",System Administrator (admin@example.com),0,9,ADO2GH-Migration,sample1,private
-```
 
 **Required columns:**
 - `org` - Azure DevOps organization name
@@ -218,11 +180,6 @@ contosodevopstest,sample-repo-testing,sample1,https://dev.azure.com/contosodevop
 
 ### 5. Pipeline CSV File (Required for Stage 5)
 The `bash/pipelines.csv` file must exist with the following structure for pipeline rewiring:
-
-```csv
-org,teamproject,repo,pipeline,url,serviceConnection,github_org,github_repo
-contosodevopstest,sample-repo-testing,sample1,\sample1-ci,https://dev.azure.com/contosodevopstest/sample-repo-testing/_build?definitionId=24,e2b1070b-277f-4e60-8bdb-8bb3b5ac122a,ADO2GH-Migration,sample1
-```
 
 **Required columns:**
 - `org` - Azure DevOps organization name
@@ -267,21 +224,6 @@ contosodevopstest,sample-repo-testing,sample1,\sample1-ci,https://dev.azure.com/
 4. Select branch: `main`
 5. Click **Run**
 
-#### Option 2: Via Azure CLI
-```bash
-# Run the pipeline
-az pipelines run --name "ADO to GitHub Migration Pipeline" \
-  --branch main \
-  --project ado2gh-ado-pipelines \
-  --organization https://dev.azure.com/<org>
-```
-
-#### Option 3: Programmatically (PowerShell)
-```powershell
-# Trigger pipeline run
-az pipelines run --id 32 --project ado2gh-ado-pipelines --organization https://dev.azure.com/contosodevopstest
-```
-
 ### Configuring Concurrent Migrations
 
 You can adjust the number of concurrent migrations by modifying the `maxConcurrent` variable in `ado2gh-migration.yml`:
@@ -308,80 +250,22 @@ The pipeline publishes detailed logs as build artifacts:
 
 **Migration Logs** (from Stage 3: Migration)
 - **Artifact Name**: `migration-logs`
-- **Contains**:
-  - Individual migration log files for each repository
-  - Migration output CSV with status for each repository
-  - Timestamped log files
 
-**Validation Logs** (from Stage 4: Post-Migration Validation)
+ **Migration Validation Logs** (from Stage 4: Migration Validation)
 - **Artifact Name**: `validation-logs`
-- **Contains**:
-  - Validation log files for each repository
-  - JSON files with repository details
-  - Branch comparison results
-  - Timestamped validation logs
+
+ **Pipeline Rewiring Logs** (from Stage 5: Pipeline Rewiring)
+- **Artifact Name**: `rewiring-logs`
+
+ **Boards Integration Logs** (from Stage 6: Boards Integration)
+- **Artifact Name**: `boards-integration-logs`
+  
 
 **To download artifacts:**
 1. Go to the completed pipeline run
 2. Click on the **Summary** or **Published** tab
 3. Find the **Artifacts** section
-4. Click on **migration-logs** or **validation-logs** to download
-
-#### 3. 🧭 Log Files Location in Artifacts
-
-After downloading and extracting the artifacts, you'll find:
-
-```
-migration-logs/
-├── repo_migration_output-YYYYMMDD-HHMMSS.csv    # Migration status summary
-├── migration-<repo-name>.log                     # Individual repo logs
-└── s/                                            # Full workspace snapshot
-    └── bash/
-        └── repos.csv
-
-validation-logs/
-├── validation-log-YYYYMMDD.txt                   # Validation summary
-├── validation-<repo-name>.json                   # GitHub repo details
-└── s/                                            # Full workspace snapshot
-```
-
-#### 4. Interpreting Log Files
-
-**Migration Status CSV:**
-```csv
-org,teamproject,repo,github_org,github_repo,gh_repo_visibility,Migration_Status,Log_File
-contosodevopstest,sample-repo-testing,sample1,ADO2GH-Migration,sample1,private,Success,migration-sample1.log
-```
-
-**Status Values:**
-- `Success` - Repository migrated successfully
-- `Failure` - Migration failed, check log file for details
-- `Pending` - Migration in progress or queued
-
-**Individual Log Files:**
-Each log file contains:
-- Timestamp of migration start
-- GitHub CLI command executed
-- Detailed migration output from `gh-ado2gh`
-- Success or failure indicators
-- Error messages (if any)
-
-### ❌ Troubleshooting Failed Migrations
-
-If a migration fails:
-
-1. **Check the individual log file** in `migration-logs` artifact
-2. **Common issues:**
-   - Repository already exists in GitHub
-   - Insufficient permissions (check PAT scopes)
-   - Network timeouts (consider reducing concurrent migrations)
-   - Invalid repository names or visibility settings
-
-3. **Retry failed repositories:**
-   - Remove successful entries from `repos.csv`
-   - Keep only failed repositories
-   - Commit and push changes
-   - Trigger a new pipeline run
+4. Click on **migration-logs** or **validation-logs** or **rewiring-logs** or **boards-integration-logs** to download
 
 ## 📂 Pipeline Structure
 
@@ -396,70 +280,9 @@ ado2gh-ado-pipelines/
 │   ├── 5_boards_integration.sh                  # Stage 6: Azure Boards integration script
 │   ├── repos.csv                                # Repository list (required)
 │   └── pipelines.csv                            # Pipeline list for rewiring (required for Stage 5)
-├── PAT_TOKEN_CONFIGURATION.md                    # Detailed PAT token setup guide
 ├── .gitattributes                                # Git line ending configuration
 └── README.md                                     # This file
 ```
-
-## ⭐ Key Features
-
-✅ **6-Stage Migration Process**: Complete end-to-end migration with validation gates
-✅ **3 Manual Approval Gates**: Control migration flow at critical checkpoints
-✅ **Parallel Migrations**: Migrate up to 5 repositories concurrently
-✅ **Comprehensive Validation**: Pre-migration readiness checks and post-migration verification
-✅ **Pipeline Rewiring**: Automatically update ADO pipelines to use GitHub repos
-✅ **Azure Boards Integration**: Enable work item linking with GitHub commits/PRs
-✅ **Security Isolation**: Separate PAT tokens with minimal required scopes
-✅ **Detailed Logging**: Individual log files for each stage and repository
-✅ **Status Tracking**: CSV output with migration results
-✅ **Error Handling**: Continues even if some migrations fail
-✅ **Artifact Publishing**: All logs preserved as build artifacts
-
-## Support and Troubleshooting
-
-### Common Issues
-
-**Issue: Pipeline fails at Stage 1 (Prerequisite Validation)**
-- **Solution**: Verify `bash/repos.csv` exists and contains all required columns: `org`, `teamproject`, `repo`, `github_org`, `github_repo`, `gh_repo_visibility`
-
-**Issue: "Variable group 'core-entauto-github-migration-secrets' could not be found"**
-- **Solution**: Create the migration variable group with `GH_TOKEN` and `ADO_PAT`. See Prerequisites section above.
-
-**Issue: "Variable group 'azure-boards-integration-secrets' could not be found" (Stage 6)**
-- **Solution**: Create the Boards integration variable group with `GH_PAT` and `ADO_PAT` (Boards-only scopes). See [PAT_TOKEN_CONFIGURATION.md](PAT_TOKEN_CONFIGURATION.md)
-
-**Issue: "ADO_PAT environment variable is not set"**
-- **Solution**: Ensure the appropriate variable group contains `ADO_PAT` as a secret variable. Remember: different ADO_PAT tokens are used in different stages.
-
-**Issue: "Repository already exists in GitHub"**
-- **Solution**: Delete the existing repository in GitHub or use a different name in `repos.csv`
-
-**Issue: "Authentication failed" or "Permission denied"**
-- **Solution**: Verify PAT tokens have correct scopes and haven't expired. See [PAT_TOKEN_CONFIGURATION.md](PAT_TOKEN_CONFIGURATION.md) for required scopes.
-
-**Issue: Migration timeout**
-- **Solution**: Reduce `maxConcurrent` value (line 8 in YAML) or increase `timeoutInMinutes` for the migration task
-
-**Issue: "Work item access denied" (Stage 6)**
-- **Solution**: Verify the `ADO_PAT` in `azure-boards-integration-secrets` has Work Items (Read, Write) scope
-
-**Issue: Pipeline rewiring fails (Stage 5)**
-- **Solution**: Ensure `bash/pipelines.csv` exists with correct service connection IDs and all required columns
-
-### Pipeline Monitoring
-
-Monitor pipeline execution:
-1. **Real-time**: Watch logs in Azure DevOps UI during execution
-2. **Post-run**: Review artifacts and summary logs
-3. **Status Bar**: Check migration progress in Stage 3 logs
-
-### Getting Help
-
-For issues or questions:
-1. Review the individual log files in artifacts
-2. Check the pipeline run summary for error messages
-3. Verify all prerequisites are met
-4. Review the `gh-ado2gh` documentation: https://github.com/github/gh-ado2gh
 
 ## 📄 License
 
