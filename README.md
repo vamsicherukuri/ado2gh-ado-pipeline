@@ -101,7 +101,7 @@ Executes `4_rewire_pipeline.sh` to:
 - Validates pipeline configurations
 - Generates rewiring logs
 
-### Stage 6: Azure Boards Integration (Manual Approval Required)
+### Stage 6: Azure Boards Integration
 - **⏸️ Manual Approval Gate:** Review rewiring before Boards integration
 Executes `5_boards_integration.sh` to:
 
