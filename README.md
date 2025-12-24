@@ -8,7 +8,7 @@ To address this scalability challenge, I designed a stage-based Azure DevOps YAM
 
 By distributing ownership to teams and allowing migrations to run in parallel, this approach scales effectively for large enterprises, avoids centralized bottlenecks and big-bang migrations, and makes the overall ADO-to-GHE migration process more manageable, controlled, and resilient.
 
-## pipeline stages overview
+## Pipeline stages overview
 ```mermaid
 ---
 config:
