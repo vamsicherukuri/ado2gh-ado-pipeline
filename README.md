@@ -101,7 +101,7 @@ Executes `4_rewire_pipeline.sh` to:
 - Updates service connections and repository sources
 - Validates pipeline configurations
 - Generates rewiring logs
-- - **⏸️ User approval:** Review validation before proceeding to next stage 6: boards Integration
+- **⏸️ User approval:** Review validation before proceeding to next stage 6: boards Integration
 
 ### Stage 6: Azure Boards Integration
 Executes `5_boards_integration.sh` to:
