@@ -164,41 +164,42 @@ Before running this pipeline, ensure the following requirements are met:
  #### 1. 🗂️ Define Migration Scope Using CSV Configuration Files: 
  Provide the source and target details in the `repo.csv` and `pipeline.csv` files for the repositories batched for migration. You can use the existing CSV templates in the repository and update them with your repository and pipeline information.
 
-    The `bash/repos.csv` file must exist with the following structure:
- 
-    **Required columns:**
-    - `org` - Azure DevOps organization name
-    - `teamproject` - Azure DevOps project name
-    - `repo` - Azure DevOps repository name
-    - `github_org` - Target GitHub organization
-    - `github_repo` - Target GitHub repository name
-    - `gh_repo_visibility` - Repository visibility: `private`, `public`, or `internal`
+The `bash/repos.csv` file must exist with the following structure:
 
-    The `bash/pipelines.csv` file must exist with the following structure for pipeline rewiring:
+   **Required columns:**
 
-    **Required columns:**
-    - `org` - Azure DevOps organization name
-    - `teamproject` - Azure DevOps project name
-    - `pipeline` - Pipeline name/path to rewire
-    - `github_org` - Target GitHub organization
-    - `github_repo` - Target GitHub repository name
-    - `serviceConnection` - Azure DevOps GitHub service connection ID
++ `org` - Azure DevOps organization name
++ `teamproject` - Azure DevOps project name
++ `repo` - Azure DevOps repository name
++ `github_org` - Target GitHub organization
++ `github_repo` - Target GitHub repository name
++ `gh_repo_visibility` - Repository visibility: `private`, `public`, or `internal`
+
+The `bash/pipelines.csv` file must exist with the following structure for pipeline rewiring:
+
+**Required columns:**
++ `org` - Azure DevOps organization name
++ `teamproject` - Azure DevOps project name
++ `pipeline` - Pipeline name/path to rewire
++ `github_org` - Target GitHub organization
++ `github_repo` - Target GitHub repository name
++ `serviceConnection` - Azure DevOps GitHub service connection ID
 
  #### 2. 🔐 Authentication & Access Token Requirements
  Create one Azure DevOps PAT token and two separate GitHub Enterprise PAT tokens with the required scopes - one for repository migration and another specifically for Azure Boards integration.
+ 
 **Github PAT for repo migration:**
++ ✅ `repo` (Full control of private repositories)
++ ✅ `workflow` (Update GitHub Action workflows)
++ ✅ `admin:org` (Full control of orgs and teams)
++ ✅ `read:user` (Read user profile data)
 
-    - ✅ `repo` (Full control of private repositories)
-    - ✅ `workflow` (Update GitHub Action workflows)
-    - ✅ `admin:org` (Full control of orgs and teams)
-    - ✅ `read:user` (Read user profile data)
 
 **Github PAT for Boards Integration:**
-
-- ✅ `repo` (Full control of private repositories)
-- ✅ `admin:repo_hook` (Full control of repository hooks)
-- ✅ `read:user` (Read user profile data)
-- ✅ `user:email` (Access user email addresses)
++ ✅ `repo` (Full control of private repositories)
++ ✅ `admin:repo_hook` (Full control of repository hooks)
++ ✅ `read:user` (Read user profile data)
++ ✅ `user:email` (Access user email addresses)
 
  
  #### 3. 🧩Azure DevOps Service Connections
@@ -480,6 +481,7 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
 
