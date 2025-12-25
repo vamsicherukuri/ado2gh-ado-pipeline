@@ -21,19 +21,18 @@ By distributing ownership to teams and allowing migrations to run in parallel, t
 - ✅ **Automated Validation** - Verifies branch counts, commit counts, and SHA matching to ensure migration integrity
 - ⏸️ **Manual Approval Gates** - Three strategic approval points for review and validation
 - 📊 **Batch Migration Support** - Migrate 1 to 100+ repositories per run with configurable concurrency
-- 🔁 **Idempotent & Resumable** - Safe to re-run; resume from failure points
+- 🔁 **Idempotent & Resumable** - resume from failure points
 - 📝 **Comprehensive Logging** - Detailed artifacts for every stage (migration, validation, rewiring, boards)
 - 🔧 **Pipeline Rewiring** - Automatically updates Azure DevOps pipelines to use GitHub repositories
-- 🔗 **Azure Boards Integration** - Enables AB# work item linking in GitHub commits and PRs
+- 🔗 **Azure Boards Integration** - Boards Integration Enables AB# work item linking in GitHub commits and PRs
 - 🚀 **Self-Service Ready** - Enables teams to migrate their own repositories independently
-- 🛡️ **Security Best Practices** - Separate PAT tokens for migration vs. boards with least-privilege scopes
 
 ---
 
 ## 📋 Table of Contents
 
-- [Quick Start](#-quick-start-your-first-migration)
 - [Problem Statement & Solution](#-problem-statement--solution)
+- [Quick Start](#-quick-start-your-first-migration)
 - [Pipeline Architecture](#%EF%B8%8F-pipeline-stages-overview)
 - [Prerequisites](#%EF%B8%8F-prerequisites)
 - [Migration at Scale](#-migration-at-scale)
@@ -50,6 +49,55 @@ By distributing ownership to teams and allowing migrations to run in parallel, t
 
 ---
 
+## 🎯 Problem Statement & Solution
+
+### The Challenge
+
+Migrating thousands of repositories from Azure DevOps to GitHub at enterprise scale presents several challenges:
+
+- **Script-only approaches don't scale**: Running migration scripts serially from a single machine is too slow for 1,000+ repositories
+- **Centralized bottleneck**: One team managing all migrations creates dependency and delays
+- **Big-bang risk**: Migrating everything at once increases failure risk and rollback complexity
+- **Lack of validation**: Manual post-migration checks are error-prone and time-consuming
+- **State management**: Tracking which repos have been migrated, validated, and rewired is complex
+
+### The Solution
+
+This pipeline-based approach solves these challenges by:
+
+✅ **Decentralized self-service**: Teams migrate their own repositories on their own schedule  
+✅ **Parallel execution**: Multiple migration batches can run concurrently (within rate limits)  
+✅ **Automated validation**: Built-in checks ensure migration completeness (branches, commits, SHAs)  
+✅ **Staged approvals**: Manual gates enforce review before proceeding to next stage  
+✅ **Comprehensive logging**: Detailed artifacts enable troubleshooting and audit trails  
+✅ **Repeatable process**: YAML pipeline ensures consistency across all migrations
+
+### Who Should Use This Pipeline
+
+**Target Users:**
+- DevOps engineers managing repository migrations
+- Development teams migrating their own repositories (self-service)
+- Platform teams coordinating large-scale migrations
+
+**Required Skills:**
+- Basic understanding of Git and version control
+- Familiarity with Azure DevOps and Azure Pipelines
+- Ability to edit CSV files and commit changes
+- Understanding of GitHub organizations and repositories
+
+**When to Use This Pipeline:**
+- ✅ Migrating 10+ repositories (batch migration)
+- ✅ Need for automated validation and approval gates
+- ✅ Require pipeline rewiring and boards integration
+- ✅ Want comprehensive logging and audit trails
+
+**When NOT to Use This Pipeline:**
+- ❌ Single repository migration (use `gh ado2gh migrate-repo` CLI command directly)
+- ❌ Repositories with complex monorepo dependencies requiring custom transformations
+- ❌ Migrations requiring commit history rewriting or filtering
+
+---
+
 ## 🚀 Quick Start: Your First Migration
 
 ### Prerequisites Checklist
@@ -57,7 +105,7 @@ By distributing ownership to teams and allowing migrations to run in parallel, t
 Before running your first migration, ensure you have completed the following:
 
 - [ ] Variable groups created and populated (`core-entauto-github-migration-secrets` and `azure-boards-integration-secrets`)
-- [ ] GitHub organizations exist and you have **Owner** or **Admin** access
+- [ ] GitHub organizations exist and you have **Owner** access
 - [ ] GitHub service connection configured in Azure DevOps (required for Stage 5)
 - [ ] `bash/repos.csv` prepared with 1-3 test repositories
 - [ ] `bash/pipelines.csv` prepared (if pipeline rewiring is needed)
@@ -146,56 +194,7 @@ mycompany,Mobile,ios-app,mycompany-gh,mobile-ios,private
 
 ---
 
-## 🎯 Problem Statement & Solution
-
-### The Challenge
-
-Migrating thousands of repositories from Azure DevOps to GitHub at enterprise scale presents several challenges:
-
-- **Script-only approaches don't scale**: Running migration scripts serially from a single machine is too slow for 1,000+ repositories
-- **Centralized bottleneck**: One team managing all migrations creates dependency and delays
-- **Big-bang risk**: Migrating everything at once increases failure risk and rollback complexity
-- **Lack of validation**: Manual post-migration checks are error-prone and time-consuming
-- **State management**: Tracking which repos have been migrated, validated, and rewired is complex
-
-### The Solution
-
-This pipeline-based approach solves these challenges by:
-
-✅ **Decentralized self-service**: Teams migrate their own repositories on their own schedule  
-✅ **Parallel execution**: Multiple migration batches can run concurrently (within rate limits)  
-✅ **Automated validation**: Built-in checks ensure migration completeness (branches, commits, SHAs)  
-✅ **Staged approvals**: Manual gates enforce review before proceeding to next stage  
-✅ **Comprehensive logging**: Detailed artifacts enable troubleshooting and audit trails  
-✅ **Repeatable process**: YAML pipeline ensures consistency across all migrations
-
-### Who Should Use This Pipeline
-
-**Target Users:**
-- DevOps engineers managing repository migrations
-- Development teams migrating their own repositories (self-service)
-- Platform teams coordinating large-scale migrations
-
-**Required Skills:**
-- Basic understanding of Git and version control
-- Familiarity with Azure DevOps and Azure Pipelines
-- Ability to edit CSV files and commit changes
-- Understanding of GitHub organizations and repositories
-
-**When to Use This Pipeline:**
-- ✅ Migrating 10+ repositories (batch migration)
-- ✅ Need for automated validation and approval gates
-- ✅ Require pipeline rewiring and boards integration
-- ✅ Want comprehensive logging and audit trails
-
-**When NOT to Use This Pipeline:**
-- ❌ Single repository migration (use `gh ado2gh migrate-repo` CLI command directly)
-- ❌ Repositories with complex monorepo dependencies requiring custom transformations
-- ❌ Migrations requiring commit history rewriting or filtering
-
----
-
-## 🏗️ Pipeline Stages Overview
+## ️ Pipeline Stages Overview
 
 This pipeline is designed to run on Ubuntu Linux using Microsoft-hosted Azure Pipelines agents with the `ubuntu-latest` VM image. The pipeline executes 6 stages sequentially, where each stage runs on a completely fresh Ubuntu runner with no state carried over from previous stages.
 
