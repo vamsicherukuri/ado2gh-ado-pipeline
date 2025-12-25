@@ -37,7 +37,7 @@ This pipeline-based approach solves these challenges by:
 
 ## 📋 Table of Contents
 
-- [Pipeline Overview](#pipeline-stages-overview)
+- [Pipeline Overview](#-pipeline-stages-overview)
 - [Prerequisites](#%EF%B8%8F-prerequisites)
 - [Quick Start](#-quick-start-your-first-migration)
 - [Manual Approval Gates](#%EF%B8%8F-manual-approval-gate-guidelines)
@@ -497,6 +497,7 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
 
