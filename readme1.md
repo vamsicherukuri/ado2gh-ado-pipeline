@@ -40,7 +40,7 @@ This pipeline-based approach solves these challenges by:
 - [Pipeline Overview](#%EF%B8%8F-pipeline-stages-overview)
 - [Prerequisites](#%EF%B8%8F-prerequisites)
 - [Quick Start](#-quick-start-your-first-migration)
-- [Published Artifacts](#%EF%B8%8F-Published-Artifacts)
+- [Published Artifacts](#-Published-Artifacts)
 - [FAQ](#-frequently-asked-questions)
 - [Contributing](#-contributing)
 - [License](#-license)
@@ -479,5 +479,6 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
