@@ -310,13 +310,13 @@ variables:
 ## Published Artifacts
 The pipeline publishes detailed logs as build artifacts:
 
-- **Migration Logs** (from Stage 3: Migration)
++ **Migration Logs** (from Stage 3: Migration)
   - **Artifact Name**: `migration-logs`
 
  - **Migration Validation Logs** (from Stage 4: Migration Validation)
    - **Artifact Name**: `validation-logs`
 
- - **Pipeline Rewiring Logs** (from Stage 5: Pipeline Rewiring)
+ + **Pipeline Rewiring Logs** (from Stage 5: Pipeline Rewiring)
    - **Artifact Name**: `rewiring-logs`
 
  - **Boards Integration Logs** (from Stage 6: Boards Integration)
@@ -480,5 +480,6 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
