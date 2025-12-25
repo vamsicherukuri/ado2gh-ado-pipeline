@@ -37,7 +37,7 @@ This pipeline-based approach solves these challenges by:
 
 ## 📋 Table of Contents
 
-- [Pipeline Overview](#%EF%B8%8F-pipeline-overview)
+- [Pipeline Overview](#%EF%B8%8F-pipeline-stages-overview)
 - [Prerequisites](#%EF%B8%8F-prerequisites)
 - [Quick Start](#-quick-start-your-first-migration)
 - [Published Artifacts](#%EF%B8%8F-Published-Artifacts)
@@ -306,7 +306,7 @@ variables:
 
 ---
 
-#### Published Artifacts
+## Published Artifacts
 The pipeline publishes detailed logs as build artifacts:
 
 - **Migration Logs** (from Stage 3: Migration)
@@ -333,8 +333,6 @@ The pipeline publishes detailed logs as build artifacts:
 - Run migrations sequentially, not in parallel
 - If absolutely necessary, ensure zero repository overlap between teams
 
----
-
 ### Q2: What happens to the ADO repository after migration?
 
 **A:** The ADO repository remains **intact and unchanged**. Migration is a **copy operation**, not a move.
@@ -351,8 +349,6 @@ The pipeline publishes detailed logs as build artifacts:
 3. Make ADO repository read-only (disable pushes)
 4. Archive or delete ADO repository after 90-day retention period
 
----
-
 ### Q3: Can I migrate repositories from multiple ADO organizations?
 
 **A:** Yes, list all repositories in `repos.csv` with different `org` values.
@@ -368,14 +364,9 @@ org,teamproject,repo,github_org,github_repo,gh_repo_visibility
 mycompany,Platform,api-service,mycompany-gh,platform-api,private
 anothercompany,Services,data-api,mycompany-gh,data-api,private
 ```
-
----
-
 ### Q4: How long does a typical migration take?
 
 **A:** Highly variable based on repository size and batch size.
-
----
 
 ### Q5: Can I skip Stage 5 (Pipeline Rewiring) if I don't have pipelines?
 
@@ -389,8 +380,6 @@ org,teamproject,pipeline,github_org,github_repo,serviceConnection
 
 Stage 5 will complete quickly with no pipelines to rewire.
 
----
-
 ### Q6: Does this pipeline migrate pull requests?
 
 **A:** No, **pull requests are NOT migrated**.
@@ -403,8 +392,6 @@ Stage 5 will complete quickly with no pipelines to rewire.
 **Recommendation:**
 - Complete all active PRs before migration
 - Or manually recreate PRs in GitHub after migration
-
----
 
 ### Q7: Can I migrate private ADO repos to public GitHub repos?
 
@@ -420,8 +407,6 @@ Stage 5 will complete quickly with no pipelines to rewire.
 - Remove sensitive data from history before migration
 - Default to `private` unless business requires public
 
----
-
 ### Q8: What happens if migration fails halfway through?
 
 **A:** The pipeline stops, and you can **resume from the failure point**.
@@ -431,8 +416,6 @@ Stage 5 will complete quickly with no pipelines to rewire.
 2. Identify failed repositories in `migration-summary.csv`
 3. Create new CSV with only failed repos
 4. Re-run pipeline with retry CSV
-
----
 
 ### Q9: How do I validate that migration was successful?
 
@@ -496,11 +479,5 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
-
-
-
-
-
-
 
 
