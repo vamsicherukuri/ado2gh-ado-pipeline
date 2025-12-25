@@ -41,9 +41,8 @@ This pipeline-based approach solves these challenges by:
 - [Prerequisites](#%EF%B8%8F-prerequisites)
 - [Quick Start](#-quick-start-your-first-migration)
 - [Manual Approval Gates](#%EF%B8%8F-manual-approval-gate-guidelines)
-- [How to Run](#-how-to-update-reposcsv-and-run-the-pipeline)
+- [Published Artifacts](#-Published-Artifacts)
 - [FAQ](#-frequently-asked-questions)
-- [Scope & Limitations](#%EF%B8%8F-scope--limitations)
 - [Contributing](#-contributing)
 - [License](#-license)
 
@@ -246,8 +245,6 @@ variables:
 
 ## 🚀 Quick Start: Your First Migration
 
-### Step-by-Step First Run
-
 1. **Prepare your repos.csv**
    ```bash
    # Navigate to the repository directory
@@ -310,7 +307,7 @@ variables:
 
 ---
 
-#### 2. Published Artifacts
+#### Published Artifacts
 The pipeline publishes detailed logs as build artifacts:
 
 - **Migration Logs** (from Stage 3: Migration)
@@ -446,25 +443,6 @@ Stage 5 will complete quickly with no pipelines to rewire.
 - ✅ Branch count comparison
 - ✅ Commit count comparison per branch
 - ✅ Latest commit SHA verification
-
----
-
-## 📂 Pipeline Structure
-
-```
-ado2gh-ado-pipelines/
-├── ado2gh-migration.yml                          # Main pipeline definition (6 stages)
-├── bash/
-│   ├── 1_migration_readiness_check.sh           # Stage 2: Readiness validation script
-│   ├── 2_migration.sh                           # Stage 3: Migration execution script
-│   ├── 3_post_migration_validation.sh           # Stage 4: Post-migration validation script
-│   ├── 4_rewire_pipeline.sh                     # Stage 5: Pipeline rewiring script
-│   ├── 5_boards_integration.sh                  # Stage 6: Azure Boards integration script
-│   ├── repos.csv                                # Repository list (required)
-│   └── pipelines.csv                            # Pipeline list for rewiring (required for Stage 5)
-├── .gitattributes                                # Git line ending configuration
-└── README.md                                     # This file
-```
 
 ---
 
