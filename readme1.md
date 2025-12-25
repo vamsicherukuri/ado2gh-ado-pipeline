@@ -37,7 +37,7 @@ This pipeline-based approach solves these challenges by:
 
 ## 📋 Table of Contents
 
-- [Pipeline Overview](#%EF%B8%8F-pipeline-overview)
+- [Pipeline Overview](#%EF%B8%8F-pipeline-stages-overview)
 - [Prerequisites](#%EF%B8%8F-prerequisites)
 - [Quick Start](#-quick-start-your-first-migration)
 - [Published Artifacts](#%EF%B8%8F-Published-Artifacts)
@@ -187,7 +187,7 @@ The `bash/pipelines.csv` file must exist with the following structure for pipeli
 
  #### 2. 🔐 Authentication & Access Token Requirements
  Create one Azure DevOps PAT token and two separate GitHub Enterprise PAT tokens with the required scopes - one for repository migration and another specifically for Azure Boards integration.
- 
+
 **Github PAT for repo migration:**
 + ✅ `repo` (Full control of private repositories)
 + ✅ `workflow` (Update GitHub Action workflows)
@@ -216,7 +216,7 @@ Stages 1–5 (Prerequisites, Pre-Migration Checks, Migration, Validation, and Re
 | Variable Name | Description |
 |--------------|-------------|
 | `GH_PAT` | GitHub Personal Access Token with `admin:org`, `read:user`, `repo`, `workflow` scopes |  
-| `ADO_PAT` | Azure DevOps PAT with Code (Read, Write), Build, Service Connections scopes |
+| `ADO_PAT` | Azure DevOps PAT with `Full access` scope |
 
 
 **Boards Integration Variable Group:** `azure-boards-integration-secrets`
@@ -226,7 +226,7 @@ Used in Stage 6 (Azure Boards Integration) - **SEPARATE token with limited scope
 | Variable Name | Description |
 |--------------|-------------|
 | `GH_PAT` | GitHub Personal Access Token with `repo`, `admin:org` scopes |
-| `ADO_PAT` | Azure DevOps PAT with Code (Read only), Work Items (Read, Write), Project/Team (Read) |
+| `ADO_PAT` | Azure DevOps PAT with `Full access` scope |
 
 > **⚠️ IMPORTANT**: Both variable groups are required for the pipeline to run successfully. If either variable group does not exist, the pipeline will fail. Create them prior to the initial pipeline run. If variable groups are created with different names than those referenced above, the YAML must be updated accordingly.
 
@@ -308,7 +308,6 @@ variables:
 ---
 
 ## Published Artifacts
-
 The pipeline publishes detailed logs as build artifacts:
 
 - **Migration Logs** (from Stage 3: Migration)
@@ -481,11 +480,5 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
-
-
-
-
-
-
 
 
