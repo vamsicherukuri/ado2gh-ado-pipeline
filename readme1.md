@@ -40,7 +40,7 @@ This pipeline-based approach solves these challenges by:
 - [Pipeline Overview](#%EF%B8%8F-pipeline-stages-overview)
 - [Prerequisites](#%EF%B8%8F-prerequisites)
 - [Quick Start](#-quick-start-your-first-migration)
-- [Published Artifacts](#-Published-Artifacts)
+- [Published Artifacts](#%EF%B8%8F-Published-Artifacts)
 - [FAQ](#-frequently-asked-questions)
 - [Contributing](#-contributing)
 - [License](#-license)
@@ -307,6 +307,7 @@ variables:
 ---
 
 ## Published Artifacts
+
 The pipeline publishes detailed logs as build artifacts:
 
 - **Migration Logs** (from Stage 3: Migration)
@@ -479,6 +480,7 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
 
