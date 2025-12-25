@@ -72,30 +72,6 @@ This pipeline-based approach solves these challenges by:
 ✅ **Comprehensive logging**: Detailed artifacts enable troubleshooting and audit trails  
 ✅ **Repeatable process**: YAML pipeline ensures consistency across all migrations
 
-### Who Should Use This Pipeline
-
-**Target Users:**
-- DevOps engineers managing repository migrations
-- Development teams migrating their own repositories (self-service)
-- Platform teams coordinating large-scale migrations
-
-**Required Skills:**
-- Basic understanding of Git and version control
-- Familiarity with Azure DevOps and Azure Pipelines
-- Ability to edit CSV files and commit changes
-- Understanding of GitHub organizations and repositories
-
-**When to Use This Pipeline:**
-- ✅ Migrating 10+ repositories (batch migration)
-- ✅ Need for automated validation and approval gates
-- ✅ Require pipeline rewiring and boards integration
-- ✅ Want comprehensive logging and audit trails
-
-**When NOT to Use This Pipeline:**
-- ❌ Single repository migration (use `gh ado2gh migrate-repo` CLI command directly)
-- ❌ Repositories with complex monorepo dependencies requiring custom transformations
-- ❌ Migrations requiring commit history rewriting or filtering
-
 ---
 
 ## 🚀 Quick Start: Your First Migration
@@ -1848,3 +1824,4 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
