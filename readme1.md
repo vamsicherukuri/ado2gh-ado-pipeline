@@ -187,14 +187,15 @@ Before running this pipeline, ensure the following requirements are met:
  #### 2. 🔐 Authentication & Access Token Requirements
  Create one Azure DevOps PAT token and two separate GitHub Enterprise PAT tokens with the required scopes - one for repository migration and another specifically for Azure Boards integration.
 
-    **Github PAT for repo migration:**
+  **Github PAT for repo migration:**
 
     - ✅ `repo` (Full control of private repositories)
     - ✅ `workflow` (Update GitHub Action workflows)
     - ✅ `admin:org` (Full control of orgs and teams)
     - ✅ `read:user` (Read user profile data)
 
-    **Github PAT for Boards Integration:**
+  **Github PAT for Boards Integration:**
+  
     - ✅ `repo` (Full control of private repositories)
     - ✅ `admin:repo_hook` (Full control of repository hooks)
     - ✅ `read:user` (Read user profile data)
@@ -480,6 +481,7 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
 
