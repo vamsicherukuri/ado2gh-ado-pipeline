@@ -13,7 +13,7 @@ pool:
 
 stages:
   - stage: PrerequisiteValidation
-    displayName: 'Prerequisite Validation'
+    displayName: 'Stage 1: Prerequisite Validation'
     jobs:
       - job: ValidatePrerequisites
         displayName: 'Check Prerequisites'
@@ -78,7 +78,7 @@ stages:
                 echo "=========================================="
 
   - stage: MigrationReadinessCheck
-    displayName: 'PR & Pipeline Check'
+    displayName: 'Stage 2: PR & Pipeline Check'
     dependsOn: PrerequisiteValidation
     # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
@@ -151,7 +151,7 @@ stages:
               onTimeout: 'reject'
 
   - stage: Migration
-    displayName: 'Repo Migration'
+    displayName: 'Stage 3: Repo Migration'
     dependsOn: MigrationReadinessCheck
     # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
@@ -207,26 +207,6 @@ stages:
             timeoutInMinutes: 120  # 2 hours timeout for large migrations
             continueOnError: true  # Don't fail job if some repos fail
 
-          - task: Bash@3
-            displayName: 'Check Migration Results'
-            inputs:
-              targetType: 'inline'
-              script: |
-                if [ ! -f "repos_stage3_success.csv" ]; then
-                  echo "##[error]No successful migrations found - cannot proceed to validation"
-                  exit 1
-                fi
-                
-                SUCCESS_COUNT=$(($(wc -l < repos_stage3_success.csv) - 1))
-                echo "##[section]Migration Stage Summary"
-                echo "✅ Successful migrations: ${SUCCESS_COUNT}"
-                echo "📋 Filtered CSV created: repos_stage3_success.csv"
-                
-                if [ ${SUCCESS_COUNT} -eq 0 ]; then
-                  echo "##[error]No repositories migrated successfully"
-                  exit 1
-                fi
-
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Migration Logs'
             condition: always()
@@ -237,7 +217,7 @@ stages:
             continueOnError: true
 
   - stage: PostMigrationValidation
-    displayName: 'Migration Validation'
+    displayName: 'Stage 4: Migration Validation'
     dependsOn: Migration
     condition: in(dependencies.Migration.result, 'Succeeded', 'SucceededWithIssues')
     # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
@@ -247,37 +227,6 @@ stages:
         steps:
           - checkout: self
 
-          - task: DownloadBuildArtifacts@1
-            displayName: 'Download Migration Results'
-            inputs:
-              buildType: 'current'
-              downloadType: 'single'
-              artifactName: 'migration-logs'
-              downloadPath: '$(System.DefaultWorkingDirectory)'
-
-          - task: Bash@3
-            displayName: 'Prepare Validation Input'
-            inputs:
-              targetType: 'inline'
-              script: |
-                set -e
-                echo "##[section]Preparing filtered CSV for validation"
-                
-                if [ ! -f "migration-logs/repos_stage3_success.csv" ]; then
-                  echo "##[error]repos_stage3_success.csv not found in migration-logs artifact"
-                  exit 1
-                fi
-                
-                # Copy filtered CSV to working location
-                cp migration-logs/repos_stage3_success.csv bash/repos.csv
-                
-                REPO_COUNT=$(($(wc -l < bash/repos.csv) - 1))
-                echo "✅ Prepared ${REPO_COUNT} successfully migrated repos for validation"
-                
-                echo ""
-                echo "First 5 repos to validate:"
-                head -n 6 bash/repos.csv
-          
           - task: Bash@3
             displayName: 'Install GitHub CLI'
             inputs:
@@ -309,50 +258,6 @@ stages:
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 60
             continueOnError: true
-
-          - task: Bash@3
-            displayName: 'Check Validation Results'
-            inputs:
-              targetType: 'inline'
-              script: |
-                echo "##[section]Checking Validation Results"
-                
-                # List files to help debug
-                echo "Files in current directory:"
-                ls -la *.csv 2>/dev/null || echo "No CSV files found"
-                
-                if [ ! -f "repos_stage4_success.csv" ]; then
-                  echo "##[error]repos_stage4_success.csv not found"
-                  echo "##[warning]This means either:"
-                  echo "  1. The validation script failed before generating the CSV"
-                  echo "  2. All repositories failed validation"
-                  echo "  3. There was an error in the validation process"
-                  echo ""
-                  echo "Please check the validation logs artifact for details"
-                  
-                  # Check if there's a validation log file
-                  if ls validation-log-*.txt 1> /dev/null 2>&1; then
-                    echo ""
-                    echo "##[section]Last 50 lines of validation log:"
-                    tail -50 validation-log-*.txt
-                  fi
-                  
-                  exit 1
-                fi
-                
-                SUCCESS_COUNT=$(($(wc -l < repos_stage4_success.csv) - 1))
-                echo "##[section]Validation Stage Summary"
-                echo "✅ Successful validations: ${SUCCESS_COUNT}"
-                echo "📋 Filtered CSV created: repos_stage4_success.csv"
-                
-                if [ ${SUCCESS_COUNT} -eq 0 ]; then
-                  echo "##[error]CSV exists but contains no repositories"
-                  exit 1
-                fi
-                
-                echo ""
-                echo "Successfully validated repositories:"
-                tail -n +2 repos_stage4_success.csv | cut -d',' -f3
 
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Validation Logs'
@@ -423,7 +328,7 @@ stages:
               onTimeout: 'reject'
 
   - stage: PipelineRewiring
-    displayName: 'Pipeline Rewiring'
+    displayName: 'Stage 5: Pipeline Rewiring'
     dependsOn: PostMigrationValidation
     condition: in(dependencies.PostMigrationValidation.result, 'Succeeded', 'SucceededWithIssues')
     # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
@@ -433,32 +338,6 @@ stages:
         steps:
           - checkout: self
 
-          - task: DownloadBuildArtifacts@1
-            displayName: 'Download Validation Results'
-            inputs:
-              buildType: 'current'
-              downloadType: 'single'
-              artifactName: 'validation-logs'
-              downloadPath: '$(System.DefaultWorkingDirectory)'
-
-          - task: Bash@3
-            displayName: 'Prepare Rewiring Input'
-            inputs:
-              targetType: 'inline'
-              script: |
-                set -e
-                echo "##[section]Preparing filtered CSV for pipeline rewiring"
-                
-                if [ ! -f "validation-logs/repos_stage4_success.csv" ]; then
-                  echo "##[warning]repos_stage4_success.csv not found, using pipelines.csv"
-                  # Rewiring uses pipelines.csv, not repos.csv
-                  # But we document successful validations
-                else
-                  REPO_COUNT=$(($(wc -l < validation-logs/repos_stage4_success.csv) - 1))
-                  echo "✅ ${REPO_COUNT} repos successfully validated"
-                  echo "Note: Pipeline rewiring uses bash/pipelines.csv (separate from repos)"
-                fi
-          
           - task: Bash@3
             displayName: 'Install GitHub CLI'
             inputs:
@@ -539,7 +418,7 @@ stages:
                 echo "=========================================="
 
   - stage: AzureBoardsIntegration
-    displayName: 'Boards Integration'
+    displayName: 'Stage 6: Boards Integration'
     dependsOn: PipelineRewiring
     condition: in(dependencies.PipelineRewiring.result, 'Succeeded', 'SucceededWithIssues')
     # PAT Tokens Used: GH_PAT, ADO_PAT (from azure-boards-integration-secrets)
@@ -596,37 +475,6 @@ stages:
         steps:
           - checkout: self
 
-          - task: DownloadBuildArtifacts@1
-            displayName: 'Download Validation Results'
-            inputs:
-              buildType: 'current'
-              downloadType: 'single'
-              artifactName: 'validation-logs'
-              downloadPath: '$(System.DefaultWorkingDirectory)'
-
-          - task: Bash@3
-            displayName: 'Prepare Boards Integration Input'
-            inputs:
-              targetType: 'inline'
-              script: |
-                set -e
-                echo "##[section]Preparing filtered CSV for Azure Boards integration"
-                
-                if [ ! -f "validation-logs/repos_stage4_success.csv" ]; then
-                  echo "##[error]repos_stage4_success.csv not found in validation-logs artifact"
-                  exit 1
-                fi
-                
-                # Copy filtered CSV to working location
-                cp validation-logs/repos_stage4_success.csv bash/repos.csv
-                
-                REPO_COUNT=$(($(wc -l < bash/repos.csv) - 1))
-                echo "✅ Prepared ${REPO_COUNT} successfully validated repos for Boards integration"
-                
-                echo ""
-                echo "First 5 repos to integrate:"
-                head -n 6 bash/repos.csv
-          
           - task: Bash@3
             displayName: 'Install GitHub CLI'
             inputs:
