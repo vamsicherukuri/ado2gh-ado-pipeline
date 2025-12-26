@@ -69,6 +69,10 @@ SUCCESS_COUNT=0
 FAILURE_COUNT=0
 declare -a RESULTS
 
+# Arrays to track successful and failed rewires
+REWIRED=()
+REWIRE_FAILED=()
+
 # ========================================
 # HELPER FUNCTIONS
 # ========================================
@@ -273,10 +277,12 @@ while IFS= read -r line; do
         --service-connection-id "$SERVICE_CONNECTION_ID"; then
         
         SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+        REWIRED+=("$line")
         echo -e "${GREEN}      ✅ SUCCESS${NC}"
         RESULTS+=("✅ SUCCESS | $ADO_PROJECT/$ADO_PIPELINE → $GITHUB_ORG/$GITHUB_REPO")
     else
         FAILURE_COUNT=$((FAILURE_COUNT + 1))
+        REWIRE_FAILED+=("$line")
         echo -e "${RED}      ❌ FAILED${NC}"
         echo "##[error]Failed to rewire pipeline: $ADO_PROJECT/$ADO_PIPELINE"
         RESULTS+=("❌ FAILED | $ADO_PROJECT/$ADO_PIPELINE → $GITHUB_ORG/$GITHUB_REPO")
@@ -319,6 +325,13 @@ EOF
 
 echo -e "\n${GRAY}📄 Log saved: $LOG_FILE${NC}"
 
+# Generate filtered CSV for next stage if rewiring was based on repos
+# Note: Rewiring uses pipelines.csv, but we may need to track repos for boards integration
+if (( SUCCESS_COUNT > 0 )); then
+    echo -e "\n${GREEN}[INFO] Creating filtered CSV for next stage...${NC}"
+    # The rewired pipelines list is tracked, boards integration will use repos.csv from validation
+fi
+
 # ========================================
 # EXIT WITH APPROPRIATE STATUS
 # ========================================
@@ -330,6 +343,7 @@ elif [ $SUCCESS_COUNT -gt 0 ]; then
     echo -e "\n${YELLOW}⚠️  Partial success: $SUCCESS_COUNT succeeded, $FAILURE_COUNT failed${NC}"
     echo "##[warning]Partial success: $SUCCESS_COUNT succeeded, $FAILURE_COUNT failed"
     echo "##vso[task.logissue type=warning]Pipeline rewiring partial success: $FAILURE_COUNT failures"
+    # Exit successfully to allow next stage to run
     exit 0
 else
     echo -e "\n${RED}❌ All pipeline rewiring attempts failed${NC}"

@@ -29,6 +29,10 @@ TOTAL_REPOS=0
 SUCCESSFUL_INTEGRATIONS=0
 FAILED_INTEGRATIONS=0
 
+# Arrays to track successful and failed integrations
+INTEGRATED=()
+INTEGRATION_FAILED=()
+
 # Log file
 LOG_FILE="azure-boards-integration-$(date +%Y%m%d-%H%M%S).log"
 
@@ -144,8 +148,9 @@ process_repositories() {
     log_section "PROCESSING REPOSITORIES FROM repos.csv"
     
     local line_number=0
+    local current_line=""
     
-    while IFS=',' read -r ado_org ado_team_project _ github_org github_repo _; do
+    while IFS=',' read -r ado_org ado_team_project ado_repo github_org github_repo gh_repo_visibility; do
         : $((line_number++))
         
         # Skip header row
@@ -158,6 +163,9 @@ process_repositories() {
             continue
         fi
         
+        # Store current line for tracking
+        current_line="$ado_org,$ado_team_project,$ado_repo,$github_org,$github_repo,$gh_repo_visibility"
+        
         TOTAL_REPOS=$((TOTAL_REPOS + 1))
         
         log_section "Repository $TOTAL_REPOS: ${github_org}/${github_repo}"
@@ -169,8 +177,10 @@ process_repositories() {
         # Execute Azure Boards integration
         if integrate_azure_boards "$ado_org" "$ado_team_project" "$github_org" "$github_repo"; then
             SUCCESSFUL_INTEGRATIONS=$((SUCCESSFUL_INTEGRATIONS + 1))
+            INTEGRATED+=("$current_line")
         else
             FAILED_INTEGRATIONS=$((FAILED_INTEGRATIONS + 1))
+            INTEGRATION_FAILED+=("$current_line")
         fi
         
         echo "" | tee -a "$LOG_FILE"
@@ -195,10 +205,17 @@ print_summary() {
     
     if [ $FAILED_INTEGRATIONS -gt 0 ]; then
         log_warning "Some integrations failed. Please review the log file for details."
-        echo "##[error]Azure Boards integration failed for $FAILED_INTEGRATIONS repositories"
-        echo "##vso[task.logissue type=error]Boards integration failed: $FAILED_INTEGRATIONS of $TOTAL_REPOS repositories failed"
-        echo "##vso[task.complete result=Failed;]Azure Boards integration completed with failures"
-        exit 1
+        echo "##[warning]Azure Boards integration completed with $FAILED_INTEGRATIONS failures"
+        echo "##vso[task.logissue type=warning]Boards integration partial success: $FAILED_INTEGRATIONS of $TOTAL_REPOS repositories failed"
+        
+        # Only fail if ALL integrations failed
+        if [ $SUCCESSFUL_INTEGRATIONS -eq 0 ]; then
+            echo "##[error]All Azure Boards integrations failed"
+            echo "##vso[task.complete result=Failed;]Azure Boards integration - all failed"
+            exit 1
+        fi
+        
+        echo "##vso[task.logissue type=warning]Proceeding with ${SUCCESSFUL_INTEGRATIONS} successful integrations"
     elif [ $TOTAL_REPOS -eq 0 ]; then
         log_warning "No repositories were processed."
         echo "##[warning]No repositories were processed"

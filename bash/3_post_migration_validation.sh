@@ -8,6 +8,10 @@ LOG_FILE="validation-log-$(date +%Y%m%d).txt"
 VALIDATION_FAILURES=0
 VALIDATION_SUCCESSES=0
 
+# Arrays to track successful and failed repos
+VALIDATED=()
+VALIDATION_FAILED=()
+
 # Write log entry to file and stdout
 write_log() {
     local message="$1"
@@ -213,6 +217,10 @@ validate_migration() {
     done
 
     write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Validation complete for $github_repo"
+    
+    # Mark as successful validation
+    VALIDATION_SUCCESSES=$((VALIDATION_SUCCESSES + 1))
+    return 0
 }
 
 # --- CSV parsing with quoted fields ---
@@ -256,7 +264,16 @@ validate_from_csv() {
         # CSV now has 6 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility
         read -r org teamproject repo github_org github_repo gh_repo_visibility < <(parse_csv_line "$line")
         write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Processing: $repo -> $github_repo"
-        validate_migration "$org" "$teamproject" "$repo" "$github_org" "$github_repo"
+        
+        if validate_migration "$org" "$teamproject" "$repo" "$github_org" "$github_repo"; then
+            # Track successful validation
+            VALIDATED+=("$org,$teamproject,$repo,$github_org,$github_repo,$gh_repo_visibility")
+            write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ✅ Validation succeeded: $github_repo"
+        else
+            # Track failed validation
+            VALIDATION_FAILED+=("$org,$teamproject,$repo,$github_org,$github_repo,$gh_repo_visibility")
+            write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ❌ Validation failed: $github_repo"
+        fi
     done
 
     write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] All validations from CSV completed"
@@ -275,13 +292,39 @@ validate_from_csv() {
 # Or batch mode
 validate_from_csv "bash/repos.csv"
 
+# Generate filtered CSV for next stage (only successful validations)
+if (( ${#VALIDATED[@]} > 0 )); then
+  SUCCESS_CSV="repos_stage4_success.csv"
+  echo "org,teamproject,repo,github_org,github_repo,gh_repo_visibility" > "${SUCCESS_CSV}"
+  
+  for repo_info in "${VALIDATED[@]}"; do
+    echo "${repo_info}" >> "${SUCCESS_CSV}"
+  done
+  
+  echo "[INFO] Created filtered CSV for next stage: ${SUCCESS_CSV}"
+  echo "[INFO] ${#VALIDATED[@]} repositories ready for pipeline rewiring"
+  echo "##[section]Stage 4 Output:"
+  echo "##[command]Created ${SUCCESS_CSV} with ${#VALIDATED[@]} successfully validated repositories"
+fi
+
 # Exit with appropriate code based on validation results
 if [ $VALIDATION_FAILURES -gt 0 ]; then
-    echo "##[error]Post-migration validation failed for $VALIDATION_FAILURES repositories"
-    echo "##vso[task.logissue type=error]Validation failed: $VALIDATION_FAILURES repositories had validation errors"
-    echo "##vso[task.complete result=Failed;]Post-migration validation completed with failures"
-    exit 1
-else
-    echo "##vso[task.logissue type=warning]Post-migration validation completed successfully for all repositories"
-    exit 0
+    echo "##[warning]Post-migration validation completed with $VALIDATION_FAILURES failures"
+    echo "##[section]Failed Validations:"
+    for repo in "${VALIDATION_FAILED[@]}"; do
+        echo "##[warning]  ⚠️ $(echo "$repo" | cut -d',' -f3)"
+    done
+    echo "##vso[task.logissue type=warning]Validation failed: $VALIDATION_FAILURES repositories had validation errors"
+    
+    # Only fail if ALL validations failed
+    if (( ${#VALIDATED[@]} == 0 )); then
+        echo "##[error]All validations failed - cannot proceed to rewiring"
+        echo "##vso[task.complete result=Failed;]All validations failed"
+        exit 1
+    fi
+    
+    echo "##vso[task.logissue type=warning]Proceeding with ${#VALIDATED[@]} successfully validated repositories"
 fi
+
+echo "##vso[task.logissue type=warning]Post-migration validation completed successfully for ${#VALIDATED[@]} repositories"
+exit 0
