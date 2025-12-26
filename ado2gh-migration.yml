@@ -853,29 +853,38 @@ stages:
     jobs:
       - job: CompletionSummary
         displayName: 'Pipeline Completion Summary'
+        variables:
+          stage1Result: $[ stageDependencies.PrerequisiteValidation.result ]
+          stage2Result: $[ stageDependencies.MigrationReadinessCheck.result ]
+          stage3Result: $[ stageDependencies.Migration.result ]
+          stage4Result: $[ stageDependencies.PostMigrationValidation.result ]
+          stage5Result: $[ stageDependencies.PipelineRewiring.result ]
+          stage6Result: $[ stageDependencies.AzureBoardsIntegration.result ]
+          stage7Result: $[ stageDependencies.MannequinReclamation.result ]
+          stage8Result: $[ stageDependencies.DisableADORepositories.result ]
         steps:
-          - task: Bash@3
+          - task: PowerShell@2
             displayName: 'Display Pipeline Summary'
             inputs:
               targetType: 'inline'
               script: |
-                echo "=========================================="
-                echo "✅ MIGRATION PIPELINE COMPLETED"
-                echo "=========================================="
-                echo "Build Number: $(Build.BuildNumber)"
-                echo ""
-                echo "Stage Results:"
-                echo "  Stage 1: Prerequisite Validation - $(dependencies.PrerequisiteValidation.result)"
-                echo "  Stage 2: Migration Readiness - $(dependencies.MigrationReadinessCheck.result)"
-                echo "  Stage 3: Migrate Repositories - $(dependencies.Migration.result)"
-                echo "  Stage 4: Post-Migration Validation - $(dependencies.PostMigrationValidation.result)"
-                echo "  Stage 5: Rewire Pipelines - $(dependencies.PipelineRewiring.result)"
-                echo "  Stage 6: Azure Boards Integration - $(dependencies.AzureBoardsIntegration.result)"
-                echo "  Stage 7: Mannequin Reclamation - $(dependencies.MannequinReclamation.result)"
-                echo "  Stage 8: Disable ADO Repos - $(dependencies.DisableADORepositories.result)"
-                echo ""
-                echo "Pipeline Status: Completed"
-                echo "Optional stages (7, 8) may show 'Canceled' if skipped - this is normal."
-                echo ""
-                echo "Check artifacts for detailed logs from each stage."
-                echo "=========================================="
+                Write-Host "=========================================="
+                Write-Host "✅ MIGRATION PIPELINE COMPLETED"
+                Write-Host "=========================================="
+                Write-Host "Build Number: $(Build.BuildNumber)"
+                Write-Host ""
+                Write-Host "Stage Results:"
+                Write-Host "  Stage 1: Prerequisite Validation - $(stage1Result)"
+                Write-Host "  Stage 2: Migration Readiness - $(stage2Result)"
+                Write-Host "  Stage 3: Migrate Repositories - $(stage3Result)"
+                Write-Host "  Stage 4: Post-Migration Validation - $(stage4Result)"
+                Write-Host "  Stage 5: Rewire Pipelines - $(stage5Result)"
+                Write-Host "  Stage 6: Azure Boards Integration - $(stage6Result)"
+                Write-Host "  Stage 7: Mannequin Reclamation - $(stage7Result)"
+                Write-Host "  Stage 8: Disable ADO Repos - $(stage8Result)"
+                Write-Host ""
+                Write-Host "Pipeline Status: Completed"
+                Write-Host "Optional stages (7, 8) may show 'Canceled' if skipped - this is normal."
+                Write-Host ""
+                Write-Host "Check artifacts for detailed logs from each stage."
+                Write-Host "=========================================="
