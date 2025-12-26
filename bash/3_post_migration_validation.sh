@@ -284,14 +284,8 @@ validate_from_csv() {
         return 1
     fi
 
-# --- Batch validation from CSV ---
-validate_from_csv() {
-    local csv_path="${1:-bash/repos.csv}"
-
-    if [ ! -f "$csv_path" ]; then
-        write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: CSV file not found: $csv_path"
-        return 1
-    fi
+    echo "[DEBUG] Starting validation from CSV: $csv_path"
+    echo "[DEBUG] Initial VALIDATED array size: ${#VALIDATED[@]}"
 
     # Use process substitution to avoid subshell issue with while loop
     while IFS= read -r line; do
@@ -304,14 +298,17 @@ validate_from_csv() {
         if validate_migration "$org" "$teamproject" "$repo" "$github_org" "$github_repo"; then
             # Track successful validation
             VALIDATED+=("$org,$teamproject,$repo,$github_org,$github_repo,$gh_repo_visibility")
+            echo "[DEBUG] Added to VALIDATED array. New size: ${#VALIDATED[@]}"
             write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ✅ Validation succeeded: $github_repo"
         else
             # Track failed validation
             VALIDATION_FAILED+=("$org,$teamproject,$repo,$github_org,$github_repo,$gh_repo_visibility")
+            echo "[DEBUG] Added to VALIDATION_FAILED array. New size: ${#VALIDATION_FAILED[@]}"
             write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ❌ Validation failed: $github_repo"
         fi
     done < <(tail -n +2 "$csv_path")
 
+    echo "[DEBUG] Finished validation loop. Final VALIDATED array size: ${#VALIDATED[@]}"
     write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] All validations from CSV completed"
 }
 
