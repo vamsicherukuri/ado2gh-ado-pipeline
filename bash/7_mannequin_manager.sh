@@ -11,17 +11,6 @@ set -euo pipefail
 OPERATION="${1:-generate}"
 CSV_FILE="bash/repos.csv"
 
-# Validate prerequisites
-if [ -z "${GH_PAT:-}" ]; then
-    echo "ERROR: GH_PAT environment variable is not set"
-    exit 1
-fi
-
-if ! command -v gh &> /dev/null; then
-    echo "ERROR: gh CLI is not installed"
-    exit 1
-fi
-
 export GH_TOKEN="${GH_PAT}"
 
 # Extract unique GitHub organizations from repos.csv (column 4)
