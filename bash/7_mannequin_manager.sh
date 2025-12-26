@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
-################################################################################
-# Mannequin Management Script
-# Usage: 
-#   ./7_mannequin_manager.sh generate <github-org>
-#   ./7_mannequin_manager.sh reclaim <github-org>
-################################################################################
-
 set -euo pipefail
 
 OPERATION="${1:-}"
-GITHUB_ORG="${2:-}"
+CSV_FILE="bash/repos.csv"
 
-if [ -z "$OPERATION" ] || [ -z "$GITHUB_ORG" ]; then
-    echo "Usage: $0 {generate|reclaim} <github-org>"
+if [ -z "$OPERATION" ]; then
+    echo "Usage: $0 {generate|reclaim}"
     exit 1
 fi
 
 export GH_TOKEN="${GH_PAT}"
+
+# Extract unique github_org from repos.csv (column 4)
+GITHUB_ORG=$(tail -n +2 "$CSV_FILE" | cut -d',' -f4 | tr -d '"' | sort -u | head -n1)
+
+if [ -z "$GITHUB_ORG" ]; then
+    echo "ERROR: Could not find github_org in $CSV_FILE"
+    exit 1
+fi
 
 if [ "$OPERATION" == "generate" ]; then
     echo "Generating mannequins CSV for: $GITHUB_ORG"
@@ -38,7 +39,7 @@ elif [ "$OPERATION" == "reclaim" ]; then
 
 else
     echo "ERROR: Invalid operation '$OPERATION'"
-    echo "Usage: $0 {generate|reclaim} <github-org>"
+    echo "Usage: $0 {generate|reclaim}"
     exit 1
 fi
 

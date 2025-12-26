@@ -7,9 +7,6 @@ variables:
   
   - name: maxConcurrent
     value: 3  # Adjust based on your needs (1-5)
-  
-  - name: githubOrg
-    value: 'ADO2GH-Migration'  # GitHub organization for mannequin reclamation
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -649,7 +646,7 @@ stages:
               targetType: 'inline'
               script: |
                 chmod +x bash/7_mannequin_manager.sh
-                bash/7_mannequin_manager.sh generate $(githubOrg)
+                bash/7_mannequin_manager.sh generate
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               GH_TOKEN: $(GH_PAT)
@@ -793,7 +790,7 @@ stages:
               targetType: 'inline'
               script: |
                 chmod +x bash/7_mannequin_manager.sh
-                bash/7_mannequin_manager.sh reclaim $(githubOrg)
+                bash/7_mannequin_manager.sh reclaim
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               GH_TOKEN: $(GH_PAT)
