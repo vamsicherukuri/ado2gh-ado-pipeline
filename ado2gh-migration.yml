@@ -1,8 +1,8 @@
 trigger: none
 
 variables:
-  # Variable group for migration-related PAT tokens (Stages 1-5)
-  # Contains: GH_PAT, ADO_PAT (for migration, readiness checks, validation, rewiring)
+  # Variable group for migration-related PAT tokens (Stages 1-5, 7)
+  # Contains: GH_PAT, ADO_PAT (for migration, readiness checks, validation, rewiring, disable repos)
   - group: core-entauto-github-migration-secrets
   
   - name: maxConcurrent
