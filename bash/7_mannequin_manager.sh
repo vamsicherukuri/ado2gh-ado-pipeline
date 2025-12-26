@@ -18,9 +18,6 @@ get_unique_orgs() {
     tail -n +2 "$CSV_FILE" | cut -d',' -f4 | tr -d '"' | sort -u | grep -v '^$'
 }
 
-################################################################################
-# GENERATE: Create mannequin CSV files
-################################################################################
 if [ "$OPERATION" == "generate" ]; then
     echo "=========================================="
     echo "GENERATING MANNEQUIN CSVs"
@@ -61,9 +58,6 @@ if [ "$OPERATION" == "generate" ]; then
     echo "4. Resume pipeline for Stage 7B"
     echo "=========================================="
 
-################################################################################
-# RECLAIM: Reclaim mannequins using updated CSV files
-################################################################################
 elif [ "$OPERATION" == "reclaim" ]; then
     echo "=========================================="
     echo "RECLAIMING MANNEQUINS"
