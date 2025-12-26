@@ -285,6 +285,7 @@ validate_from_csv() {
         write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Processing: $repo -> $github_repo"
         
         if validate_migration "$org" "$teamproject" "$repo" "$github_org" "$github_repo"; then
+            VALIDATION_SUCCESSES=$((VALIDATION_SUCCESSES + 1))
             write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ✅ Validation succeeded: $github_repo"
         else
             VALIDATION_FAILURES=$((VALIDATION_FAILURES + 1))
