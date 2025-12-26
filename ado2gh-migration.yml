@@ -1,5 +1,21 @@
 trigger: none
 
+parameters:
+- name: runAzureBoardsIntegration
+  displayName: 'Run Azure Boards Integration (Stage 6)'
+  type: boolean
+  default: true
+
+- name: runMannequinReclamation
+  displayName: 'Run Mannequin Reclamation (Stage 7)'
+  type: boolean
+  default: false
+
+- name: runDisableADORepos
+  displayName: 'Disable ADO Repositories (Stage 8)'
+  type: boolean
+  default: false
+
 variables:
   # Variable group for migration-related PAT tokens (Stages 1-5, 7, 8)
   # Contains: GH_PAT, ADO_PAT (for migration, readiness checks, validation, rewiring, mannequin reclamation, disable repos)
@@ -381,7 +397,11 @@ stages:
   - stage: AzureBoardsIntegration
     displayName: 'Stage 6: Boards Integration'
     dependsOn: PipelineRewiring
-    condition: in(dependencies.PipelineRewiring.result, 'Succeeded', 'SucceededWithIssues')
+    condition: |
+      and(
+        eq('${{ parameters.runAzureBoardsIntegration }}', true),
+        in(dependencies.PipelineRewiring.result, 'Succeeded', 'SucceededWithIssues')
+      )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from azure-boards-integration-secrets)
     # IMPORTANT: This stage uses a SEPARATE variable group with ADO_PAT having limited Boards-only scopes
     # This is NOT the same ADO_PAT used in migration stages
@@ -479,7 +499,11 @@ stages:
   - stage: MannequinReclamation
     displayName: 'Stage 7: Mannequin Reclamation (Optional)'
     dependsOn: AzureBoardsIntegration
-    condition: in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Failed')
+    condition: |
+      and(
+        eq('${{ parameters.runMannequinReclamation }}', true),
+        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped')
+      )
     jobs:
       - job: WaitForApprovalToStartMannequins
         displayName: '⏸️ Approve to START Mannequin Reclamation'
@@ -621,7 +645,8 @@ stages:
       - MannequinReclamation
     condition: |
       and(
-        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Failed'),
+        eq('${{ parameters.runDisableADORepos }}', true),
+        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped'),
         in(dependencies.MannequinReclamation.result, 'Succeeded', 'SucceededWithIssues', 'Skipped', 'Canceled')
       )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from core-entauto-github-migration-secrets)
