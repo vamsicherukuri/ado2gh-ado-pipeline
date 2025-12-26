@@ -31,6 +31,7 @@ validate_migration() {
     local ado_repo="$3"          # repo name (we will resolve to repo_id)
     local github_org="$4"
     local github_repo="$5"
+    local has_validation_errors=0
 
     write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Validating migration: $github_repo"
 
@@ -106,7 +107,11 @@ validate_migration() {
     local gh_branch_count=${#gh_branch_array[@]}
     local ado_branch_count=${#ado_branch_array[@]}
     local branch_count_status="❌ Not Matching"
-    [ "$gh_branch_count" -eq "$ado_branch_count" ] && branch_count_status="✅ Matching"
+    if [ "$gh_branch_count" -eq "$ado_branch_count" ]; then
+        branch_count_status="✅ Matching"
+    else
+        has_validation_errors=1
+    fi
 
     write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Branch Count: ADO=$ado_branch_count | GitHub=$gh_branch_count | $branch_count_status"
 
@@ -123,8 +128,14 @@ validate_migration() {
         [[ "$ado_set" != *" $gh_branch "* ]] && missing_in_ado+=("$gh_branch")
     done
 
-    [ ${#missing_in_gh[@]} -gt 0 ] && write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Branches missing in GitHub: ${missing_in_gh[*]}"
-    [ ${#missing_in_ado[@]} -gt 0 ] && write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Branches missing in ADO: ${missing_in_ado[*]}"
+    if [ ${#missing_in_gh[@]} -gt 0 ]; then
+        write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Branches missing in GitHub: ${missing_in_gh[*]}"
+        has_validation_errors=1
+    fi
+    if [ ${#missing_in_ado[@]} -gt 0 ]; then
+        write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Branches missing in ADO: ${missing_in_ado[*]}"
+        has_validation_errors=1
+    fi
 
     # --- Validate commit counts and latest commit IDs ---
     for branch_name in "${gh_branch_array[@]}"; do
@@ -205,8 +216,16 @@ validate_migration() {
         # Match status
         local commit_count_status="❌ Not Matching"
         local sha_status="❌ Not Matching"
-        [ "$gh_commit_count" -eq "$ado_commit_count" ] && commit_count_status="✅ Matching"
-        [ -n "$gh_latest_sha" ] && [ "$gh_latest_sha" = "$ado_latest_sha" ] && sha_status="✅ Matching"
+        if [ "$gh_commit_count" -eq "$ado_commit_count" ]; then
+            commit_count_status="✅ Matching"
+        else
+            has_validation_errors=1
+        fi
+        if [ -n "$gh_latest_sha" ] && [ "$gh_latest_sha" = "$ado_latest_sha" ]; then
+            sha_status="✅ Matching"
+        else
+            has_validation_errors=1
+        fi
 
         write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Branch '$branch_name': ADO Commits=$ado_commit_count | GitHub Commits=$gh_commit_count | $commit_count_status"
         write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Branch '$branch_name': ADO SHA=$ado_latest_sha | GitHub SHA=$gh_latest_sha | $sha_status"
@@ -214,9 +233,12 @@ validate_migration() {
 
     write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Validation complete for $github_repo"
     
-    # Mark as successful validation
-    VALIDATION_SUCCESSES=$((VALIDATION_SUCCESSES + 1))
-    return 0
+    # Return based on validation results
+    if [ $has_validation_errors -eq 1 ]; then
+        return 1
+    else
+        return 0
+    fi
 }
 
 # --- CSV parsing with quoted fields ---
@@ -284,5 +306,10 @@ fi
 
 echo "##vso[task.logissue type=warning]Post-migration validation completed: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
 
-# Always exit 0 to allow pipeline to continue
+# Exit with error code if validation failures occurred
+if [ $VALIDATION_FAILURES -gt 0 ]; then
+    echo "##[error]Post-migration validation failed for $VALIDATION_FAILURES repositories"
+    exit 1
+fi
+
 exit 0
