@@ -14,6 +14,10 @@ VALIDATION_FAILED=()
 
 # Trap to ensure CSV generation on exit
 generate_success_csv() {
+    echo "[DEBUG] EXIT trap triggered"
+    echo "[DEBUG] VALIDATED array size: ${#VALIDATED[@]}"
+    echo "[DEBUG] VALIDATION_FAILED array size: ${#VALIDATION_FAILED[@]}"
+    
     if (( ${#VALIDATED[@]} > 0 )); then
         SUCCESS_CSV="repos_stage4_success.csv"
         echo "org,teamproject,repo,github_org,github_repo,gh_repo_visibility" > "${SUCCESS_CSV}"
@@ -26,6 +30,8 @@ generate_success_csv() {
         echo "[INFO] ${#VALIDATED[@]} repositories ready for pipeline rewiring"
         echo "##[section]Stage 4 Output:"
         echo "##[command]Created ${SUCCESS_CSV} with ${#VALIDATED[@]} successfully validated repositories"
+    else
+        echo "[WARNING] No validated repositories - CSV will not be created"
     fi
 }
 
@@ -278,7 +284,17 @@ validate_from_csv() {
         return 1
     fi
 
-    tail -n +2 "$csv_path" | while IFS= read -r line; do
+# --- Batch validation from CSV ---
+validate_from_csv() {
+    local csv_path="${1:-bash/repos.csv}"
+
+    if [ ! -f "$csv_path" ]; then
+        write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: CSV file not found: $csv_path"
+        return 1
+    fi
+
+    # Use process substitution to avoid subshell issue with while loop
+    while IFS= read -r line; do
         line="${line%$'\r'}"
         [ -z "$line" ] && continue
         # CSV now has 6 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility
@@ -294,7 +310,7 @@ validate_from_csv() {
             VALIDATION_FAILED+=("$org,$teamproject,$repo,$github_org,$github_repo,$gh_repo_visibility")
             write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ❌ Validation failed: $github_repo"
         fi
-    done
+    done < <(tail -n +2 "$csv_path")
 
     write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] All validations from CSV completed"
 }
