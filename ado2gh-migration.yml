@@ -640,24 +640,17 @@ stages:
               GH_TOKEN: $(GH_PAT)
 
           - task: Bash@3
-            displayName: 'Make Generate Mannequins Script Executable'
+            displayName: 'Generate Mannequin CSVs'
+            name: GenerateMannequinsTask
             inputs:
               targetType: 'inline'
               script: |
-                chmod +x bash/7a_generate_mannequins.sh
-                echo "✅ Script permissions set"
-
-          - task: Bash@3
-            displayName: 'Execute Generate Mannequin CSVs'
-            name: GenerateMannequinsTask
-            inputs:
-              targetType: 'filePath'
-              filePath: 'bash/7a_generate_mannequins.sh'
+                chmod +x bash/7_mannequin_manager.sh
+                bash/7_mannequin_manager.sh generate
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               GH_TOKEN: $(GH_PAT)
               GH_PAT: $(GH_PAT)
-              ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 30
             continueOnError: true
 
@@ -684,13 +677,10 @@ stages:
                 echo "✅ Mannequin CSV files generated"
                 echo ""
                 echo "📋 NEXT STEPS (MANUAL):"
-                echo "1. Download mannequins-*.csv files from artifacts"
-                echo "2. Edit the 'target' column to map users to GitHub usernames"
-                echo "3. Commit updated CSV files to bash/ folder"
-                echo "4. Resume pipeline to execute Stage 7B (Reclaim Mannequins)"
-                echo ""
-                echo "Check the mannequin-generation-logs artifact for details"
-                echo "Log file: generate-mannequins-*.log"
+                echo "1. Download mannequins-*.csv from artifacts"
+                echo "2. Edit 'target' column with GitHub usernames"
+                echo "3. Commit updated CSVs to bash/ folder"
+                echo "4. Resume pipeline for Stage 7B"
                 echo "=========================================="
 
   - stage: WaitForMannequinCSVUpdate
@@ -794,24 +784,17 @@ stages:
               GH_TOKEN: $(GH_PAT)
 
           - task: Bash@3
-            displayName: 'Make Reclaim Mannequins Script Executable'
+            displayName: 'Reclaim Mannequins'
+            name: ReclaimMannequinsTask
             inputs:
               targetType: 'inline'
               script: |
-                chmod +x bash/7b_reclaim_mannequins.sh
-                echo "✅ Script permissions set"
-
-          - task: Bash@3
-            displayName: 'Execute Reclaim Mannequins'
-            name: ReclaimMannequinsTask
-            inputs:
-              targetType: 'filePath'
-              filePath: 'bash/7b_reclaim_mannequins.sh'
+                chmod +x bash/7_mannequin_manager.sh
+                bash/7_mannequin_manager.sh reclaim
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               GH_TOKEN: $(GH_PAT)
               GH_PAT: $(GH_PAT)
-              ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 60
             continueOnError: true
 
@@ -835,8 +818,7 @@ stages:
                 echo "=========================================="
                 echo "Build Number: $(Build.BuildNumber)"
                 echo ""
-                echo "Check the mannequin-reclaim-logs artifact for detailed results"
-                echo "Log file: reclaim-mannequins-*.log"
+                echo "Check mannequin-reclaim-logs artifact for details"
                 echo "=========================================="
 
   - stage: DisableADORepositories
