@@ -841,10 +841,11 @@ stages:
   - stage: PipelineCompletion
     displayName: 'Pipeline Completion Summary'
     dependsOn:
+      - PrerequisiteValidation
       - MigrationReadinessCheck
-      - MigrateRepositories
+      - Migration
       - PostMigrationValidation
-      - RewirePipelines
+      - PipelineRewiring
       - AzureBoardsIntegration
       - MannequinReclamation
       - DisableADORepositories
@@ -864,10 +865,11 @@ stages:
                 echo "Build Number: $(Build.BuildNumber)"
                 echo ""
                 echo "Stage Results:"
+                echo "  Stage 1: Prerequisite Validation - $(dependencies.PrerequisiteValidation.result)"
                 echo "  Stage 2: Migration Readiness - $(dependencies.MigrationReadinessCheck.result)"
-                echo "  Stage 3: Migrate Repositories - $(dependencies.MigrateRepositories.result)"
+                echo "  Stage 3: Migrate Repositories - $(dependencies.Migration.result)"
                 echo "  Stage 4: Post-Migration Validation - $(dependencies.PostMigrationValidation.result)"
-                echo "  Stage 5: Rewire Pipelines - $(dependencies.RewirePipelines.result)"
+                echo "  Stage 5: Rewire Pipelines - $(dependencies.PipelineRewiring.result)"
                 echo "  Stage 6: Azure Boards Integration - $(dependencies.AzureBoardsIntegration.result)"
                 echo "  Stage 7: Mannequin Reclamation - $(dependencies.MannequinReclamation.result)"
                 echo "  Stage 8: Disable ADO Repos - $(dependencies.DisableADORepositories.result)"
