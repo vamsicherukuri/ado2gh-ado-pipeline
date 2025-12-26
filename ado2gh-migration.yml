@@ -1,8 +1,8 @@
 trigger: none
 
 variables:
-  # Variable group for migration-related PAT tokens (Stages 1-5, 7)
-  # Contains: GH_PAT, ADO_PAT (for migration, readiness checks, validation, rewiring, disable repos)
+  # Variable group for migration-related PAT tokens (Stages 1-5, 7A, 7B, 8)
+  # Contains: GH_PAT, ADO_PAT (for migration, readiness checks, validation, rewiring, mannequin reclamation, disable repos)
   - group: core-entauto-github-migration-secrets
   
   - name: maxConcurrent
@@ -555,10 +555,300 @@ stages:
                 echo "Log file: azure-boards-integration-*.log"
                 echo "=========================================="
 
-  - stage: DisableADORepositories
-    displayName: 'Stage 7: Disable ADO Repos (Optional)'
+  - stage: GenerateMannequinCSVs
+    displayName: 'Stage 7A: Generate Mannequin CSVs (Optional)'
     dependsOn: AzureBoardsIntegration
     condition: in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues')
+    # PAT Tokens Used: GH_PAT, ADO_PAT (from core-entauto-github-migration-secrets)
+    jobs:
+      - job: WaitForApprovalToGenerateMannequins
+        displayName: '⏸️ Approve to GENERATE MANNEQUIN CSVs'
+        pool: server
+        timeoutInMinutes: 1440
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Review & Approve Mannequin CSV Generation'
+            inputs:
+              notifyUsers: '$(Build.RequestedForEmail)'
+              instructions: |
+                ## 📋 OPTIONAL: GENERATE MANNEQUIN CSVs FOR USER MAPPING
+                
+                This stage will generate CSV files containing placeholder users (mannequins)
+                that need to be mapped to actual GitHub users.
+                
+                ### 📊 What This Stage Does
+                1. **EXTRACTS** unique GitHub organizations from repos.csv
+                2. **GENERATES** mannequins-{org}.csv for each organization
+                3. **CREATES** CSV files with user mapping templates
+                
+                ### ⏭️ After This Stage Completes
+                You will need to manually:
+                1. **DOWNLOAD** the generated mannequins-*.csv files from artifacts
+                2. **EDIT** the "target" column to map mannequins to actual GitHub usernames
+                3. **COMMIT** the updated CSV files back to the bash/ folder in this repository
+                4. **RESUME** the pipeline to execute Stage 7B (Reclaim Mannequins)
+                
+                ### 🛡️ Safety Note
+                - This is an OPTIONAL stage
+                - You can skip mannequin reclamation by clicking **Reject**
+                - Mannequins can be reclaimed later using gh CLI manually
+                
+                ---
+                
+                ✅ Click **Resume** to GENERATE MANNEQUIN CSVs
+                ❌ Click **Reject** to SKIP mannequin reclamation and proceed to Stage 8
+              onTimeout: 'reject'
+      
+      - job: GenerateMannequins
+        displayName: 'Generate Mannequin CSV Files'
+        dependsOn: WaitForApprovalToGenerateMannequins
+        condition: succeeded()
+        steps:
+          - checkout: self
+
+          - task: Bash@3
+            displayName: 'Install GitHub CLI'
+            inputs:
+              targetType: 'inline'
+              script: |
+                set -e
+                echo "Installing GitHub CLI..."
+                type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+                curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+                sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+                sudo apt update
+                sudo apt install gh -y
+                
+                echo ""
+                echo "✅ GitHub CLI installed:"
+                gh --version
+
+          - task: Bash@3
+            displayName: 'Install gh-ado2gh Extension'
+            inputs:
+              targetType: 'inline'
+              script: |
+                set -e
+                echo "Installing gh-ado2gh extension..."
+                gh extension install github/gh-ado2gh
+                
+                echo ""
+                echo "✅ Extension installed:"
+                gh extension list
+            env:
+              GH_TOKEN: $(GH_PAT)
+
+          - task: Bash@3
+            displayName: 'Make Generate Mannequins Script Executable'
+            inputs:
+              targetType: 'inline'
+              script: |
+                chmod +x bash/7a_generate_mannequins.sh
+                echo "✅ Script permissions set"
+
+          - task: Bash@3
+            displayName: 'Execute Generate Mannequin CSVs'
+            name: GenerateMannequinsTask
+            inputs:
+              targetType: 'filePath'
+              filePath: 'bash/7a_generate_mannequins.sh'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+            env:
+              GH_TOKEN: $(GH_PAT)
+              GH_PAT: $(GH_PAT)
+              ADO_PAT: $(ADO_PAT)
+            timeoutInMinutes: 30
+            continueOnError: true
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Mannequin Generation Logs'
+            condition: always()
+            inputs:
+              PathtoPublish: '$(System.DefaultWorkingDirectory)'
+              ArtifactName: 'mannequin-generation-logs'
+              publishLocation: 'Container'
+            continueOnError: true
+
+          - task: Bash@3
+            displayName: 'Mannequin Generation Summary'
+            condition: always()
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "=========================================="
+                echo "MANNEQUIN GENERATION SUMMARY"
+                echo "=========================================="
+                echo "Build Number: $(Build.BuildNumber)"
+                echo ""
+                echo "✅ Mannequin CSV files generated"
+                echo ""
+                echo "📋 NEXT STEPS (MANUAL):"
+                echo "1. Download mannequins-*.csv files from artifacts"
+                echo "2. Edit the 'target' column to map users to GitHub usernames"
+                echo "3. Commit updated CSV files to bash/ folder"
+                echo "4. Resume pipeline to execute Stage 7B (Reclaim Mannequins)"
+                echo ""
+                echo "Check the mannequin-generation-logs artifact for details"
+                echo "Log file: generate-mannequins-*.log"
+                echo "=========================================="
+
+  - stage: WaitForMannequinCSVUpdate
+    displayName: 'Stage 7A.5: Edit & Commit Mannequin CSVs (Manual)'
+    dependsOn: GenerateMannequinCSVs
+    condition: succeeded()
+    jobs:
+      - job: WaitForCSVUpdate
+        displayName: '⏸️ MANUAL: Edit & Commit Updated CSVs'
+        pool: server
+        timeoutInMinutes: 10080  # 7 days for manual editing
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Confirm Mannequin CSVs Updated'
+            inputs:
+              notifyUsers: '$(Build.RequestedForEmail)'
+              instructions: |
+                ## ✏️ MANUAL ACTION REQUIRED: UPDATE MANNEQUIN CSVs
+                
+                ### 📥 Step 1: Download Generated CSV Files
+                1. Go to this pipeline run's **Artifacts** section
+                2. Download the **mannequin-generation-logs** artifact
+                3. Extract the mannequins-*.csv files
+                
+                ### ✏️ Step 2: Edit CSV Files
+                For each mannequins-{org}.csv file:
+                1. **OPEN** the CSV file in a text editor or Excel
+                2. **REVIEW** the mannequin entries (placeholder users)
+                3. **FILL IN** the "target" column with actual GitHub usernames
+                   - Map each mannequin to the corresponding real GitHub user
+                   - Example: mannequin "mona-12345" → target "mona-lisa"
+                4. **SAVE** the updated CSV file
+                
+                ### 📤 Step 3: Commit Updated CSVs
+                1. **COPY** the updated mannequins-*.csv files to the bash/ folder in your local repo
+                2. **COMMIT** the changes:
+                   ```
+                   git add bash/mannequins-*.csv
+                   git commit -m "Update mannequin mappings for user reclamation"
+                   git push
+                   ```
+                
+                ### ⏭️ Step 4: Resume Pipeline
+                Once you've committed the updated CSV files:
+                1. **VERIFY** the files are in the bash/ folder of this repository
+                2. Click **Resume** below to proceed to Stage 7B (Reclaim Mannequins)
+                
+                ### 🛡️ Safety Note
+                - Take your time to map users correctly
+                - Incorrect mappings may result in wrong user assignments
+                - You can skip reclamation by clicking **Reject**
+                
+                ---
+                
+                ✅ Click **Resume** AFTER committing updated CSVs to proceed to Stage 7B
+                ❌ Click **Reject** to SKIP mannequin reclamation and proceed to Stage 8
+              onTimeout: 'reject'
+
+  - stage: ReclaimMannequins
+    displayName: 'Stage 7B: Reclaim Mannequins (Optional)'
+    dependsOn: WaitForMannequinCSVUpdate
+    condition: succeeded()
+    # PAT Tokens Used: GH_PAT, ADO_PAT (from core-entauto-github-migration-secrets)
+    jobs:
+      - job: ReclaimMannequinUsers
+        displayName: 'Reclaim Mannequin Users'
+        steps:
+          - checkout: self
+
+          - task: Bash@3
+            displayName: 'Install GitHub CLI'
+            inputs:
+              targetType: 'inline'
+              script: |
+                set -e
+                echo "Installing GitHub CLI..."
+                type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+                curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+                sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+                sudo apt update
+                sudo apt install gh -y
+                
+                echo ""
+                echo "✅ GitHub CLI installed:"
+                gh --version
+
+          - task: Bash@3
+            displayName: 'Install gh-ado2gh Extension'
+            inputs:
+              targetType: 'inline'
+              script: |
+                set -e
+                echo "Installing gh-ado2gh extension..."
+                gh extension install github/gh-ado2gh
+                
+                echo ""
+                echo "✅ Extension installed:"
+                gh extension list
+            env:
+              GH_TOKEN: $(GH_PAT)
+
+          - task: Bash@3
+            displayName: 'Make Reclaim Mannequins Script Executable'
+            inputs:
+              targetType: 'inline'
+              script: |
+                chmod +x bash/7b_reclaim_mannequins.sh
+                echo "✅ Script permissions set"
+
+          - task: Bash@3
+            displayName: 'Execute Reclaim Mannequins'
+            name: ReclaimMannequinsTask
+            inputs:
+              targetType: 'filePath'
+              filePath: 'bash/7b_reclaim_mannequins.sh'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+            env:
+              GH_TOKEN: $(GH_PAT)
+              GH_PAT: $(GH_PAT)
+              ADO_PAT: $(ADO_PAT)
+            timeoutInMinutes: 60
+            continueOnError: true
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Mannequin Reclaim Logs'
+            condition: always()
+            inputs:
+              PathtoPublish: '$(System.DefaultWorkingDirectory)'
+              ArtifactName: 'mannequin-reclaim-logs'
+              publishLocation: 'Container'
+            continueOnError: true
+
+          - task: Bash@3
+            displayName: 'Mannequin Reclaim Summary'
+            condition: always()
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "=========================================="
+                echo "MANNEQUIN RECLAMATION SUMMARY"
+                echo "=========================================="
+                echo "Build Number: $(Build.BuildNumber)"
+                echo ""
+                echo "Check the mannequin-reclaim-logs artifact for detailed results"
+                echo "Log file: reclaim-mannequins-*.log"
+                echo "=========================================="
+
+  - stage: DisableADORepositories
+    displayName: 'Stage 8: Disable ADO Repos (Optional)'
+    dependsOn: 
+      - AzureBoardsIntegration
+      - ReclaimMannequins
+    condition: |
+      and(
+        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues'),
+        in(dependencies.ReclaimMannequins.result, 'Succeeded', 'SucceededWithIssues', 'Skipped')
+      )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
       - job: WaitForApprovalToDisableRepos
@@ -580,11 +870,14 @@ stages:
                 2. **CONFIRM** all validation checks passed (Stage 4)
                 3. **ENSURE** all pipelines rewired successfully (Stage 5)
                 4. **CHECK** Azure Boards integration completed (Stage 6)
-                5. **DOWNLOAD AND REVIEW** all artifacts:
+                5. **REVIEW** mannequin reclamation (if executed in Stages 7A-7B)
+                6. **DOWNLOAD AND REVIEW** all artifacts:
                    - migration-logs
                    - validation-logs
                    - rewiring-logs
                    - boards-integration-logs
+                   - mannequin-generation-logs (if applicable)
+                   - mannequin-reclaim-logs (if applicable)
                 
                 ### ⏭️ Next Action: Disable ADO Repositories
                 This will:
