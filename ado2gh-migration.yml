@@ -315,8 +315,28 @@ stages:
             inputs:
               targetType: 'inline'
               script: |
+                echo "##[section]Checking Validation Results"
+                
+                # List files to help debug
+                echo "Files in current directory:"
+                ls -la *.csv 2>/dev/null || echo "No CSV files found"
+                
                 if [ ! -f "repos_stage4_success.csv" ]; then
-                  echo "##[error]No successful validations found - cannot proceed"
+                  echo "##[error]repos_stage4_success.csv not found"
+                  echo "##[warning]This means either:"
+                  echo "  1. The validation script failed before generating the CSV"
+                  echo "  2. All repositories failed validation"
+                  echo "  3. There was an error in the validation process"
+                  echo ""
+                  echo "Please check the validation logs artifact for details"
+                  
+                  # Check if there's a validation log file
+                  if ls validation-log-*.txt 1> /dev/null 2>&1; then
+                    echo ""
+                    echo "##[section]Last 50 lines of validation log:"
+                    tail -50 validation-log-*.txt
+                  fi
+                  
                   exit 1
                 fi
                 
@@ -326,9 +346,13 @@ stages:
                 echo "📋 Filtered CSV created: repos_stage4_success.csv"
                 
                 if [ ${SUCCESS_COUNT} -eq 0 ]; then
-                  echo "##[error]No repositories validated successfully"
+                  echo "##[error]CSV exists but contains no repositories"
                   exit 1
                 fi
+                
+                echo ""
+                echo "Successfully validated repositories:"
+                tail -n +2 repos_stage4_success.csv | cut -d',' -f3
 
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Validation Logs'

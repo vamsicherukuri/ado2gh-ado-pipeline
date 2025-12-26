@@ -12,6 +12,26 @@ VALIDATION_SUCCESSES=0
 VALIDATED=()
 VALIDATION_FAILED=()
 
+# Trap to ensure CSV generation on exit
+generate_success_csv() {
+    if (( ${#VALIDATED[@]} > 0 )); then
+        SUCCESS_CSV="repos_stage4_success.csv"
+        echo "org,teamproject,repo,github_org,github_repo,gh_repo_visibility" > "${SUCCESS_CSV}"
+        
+        for repo_info in "${VALIDATED[@]}"; do
+            echo "${repo_info}" >> "${SUCCESS_CSV}"
+        done
+        
+        echo "[INFO] Created filtered CSV for next stage: ${SUCCESS_CSV}"
+        echo "[INFO] ${#VALIDATED[@]} repositories ready for pipeline rewiring"
+        echo "##[section]Stage 4 Output:"
+        echo "##[command]Created ${SUCCESS_CSV} with ${#VALIDATED[@]} successfully validated repositories"
+    fi
+}
+
+# Ensure CSV is generated even if script fails
+trap generate_success_csv EXIT
+
 # Write log entry to file and stdout
 write_log() {
     local message="$1"
@@ -292,21 +312,7 @@ validate_from_csv() {
 # Or batch mode
 validate_from_csv "bash/repos.csv"
 
-# Generate filtered CSV for next stage (only successful validations)
-if (( ${#VALIDATED[@]} > 0 )); then
-  SUCCESS_CSV="repos_stage4_success.csv"
-  echo "org,teamproject,repo,github_org,github_repo,gh_repo_visibility" > "${SUCCESS_CSV}"
-  
-  for repo_info in "${VALIDATED[@]}"; do
-    echo "${repo_info}" >> "${SUCCESS_CSV}"
-  done
-  
-  echo "[INFO] Created filtered CSV for next stage: ${SUCCESS_CSV}"
-  echo "[INFO] ${#VALIDATED[@]} repositories ready for pipeline rewiring"
-  echo "##[section]Stage 4 Output:"
-  echo "##[command]Created ${SUCCESS_CSV} with ${#VALIDATED[@]} successfully validated repositories"
-fi
-
+# CSV generation now handled by EXIT trap
 # Exit with appropriate code based on validation results
 if [ $VALIDATION_FAILURES -gt 0 ]; then
     echo "##[warning]Post-migration validation completed with $VALIDATION_FAILURES failures"
