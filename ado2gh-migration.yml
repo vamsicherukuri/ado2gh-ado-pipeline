@@ -825,11 +825,15 @@ stages:
     displayName: 'Stage 8: Disable ADO Repos (Optional)'
     dependsOn: 
       - AzureBoardsIntegration
+      - GenerateMannequinCSVs
+      - WaitForMannequinCSVUpdate
       - ReclaimMannequins
     condition: |
       and(
         in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues'),
-        in(dependencies.ReclaimMannequins.result, 'Succeeded', 'SucceededWithIssues', 'Skipped')
+        in(dependencies.GenerateMannequinCSVs.result, 'Succeeded', 'SucceededWithIssues', 'Skipped', 'Canceled'),
+        in(dependencies.WaitForMannequinCSVUpdate.result, 'Succeeded', 'SucceededWithIssues', 'Skipped', 'Canceled'),
+        in(dependencies.ReclaimMannequins.result, 'Succeeded', 'SucceededWithIssues', 'Skipped', 'Canceled')
       )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
