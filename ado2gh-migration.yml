@@ -837,7 +837,43 @@ stages:
                 echo "Check the disable-repos-logs artifact for detailed results"
                 echo "Log file: disable-ado-repos-*.log"
                 echo "=========================================="
-                echo ""
+
+  - stage: PipelineCompletion
+    displayName: 'Pipeline Completion Summary'
+    dependsOn:
+      - MigrationReadinessCheck
+      - MigrateRepositories
+      - PostMigrationValidation
+      - RewirePipelines
+      - AzureBoardsIntegration
+      - MannequinReclamation
+      - DisableADORepositories
+    condition: always()
+    jobs:
+      - job: CompletionSummary
+        displayName: 'Pipeline Completion Summary'
+        steps:
+          - task: Bash@3
+            displayName: 'Display Pipeline Summary'
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "=========================================="
                 echo "✅ MIGRATION PIPELINE COMPLETED"
-                echo "All stages have finished execution."
+                echo "=========================================="
+                echo "Build Number: $(Build.BuildNumber)"
+                echo ""
+                echo "Stage Results:"
+                echo "  Stage 2: Migration Readiness - $(dependencies.MigrationReadinessCheck.result)"
+                echo "  Stage 3: Migrate Repositories - $(dependencies.MigrateRepositories.result)"
+                echo "  Stage 4: Post-Migration Validation - $(dependencies.PostMigrationValidation.result)"
+                echo "  Stage 5: Rewire Pipelines - $(dependencies.RewirePipelines.result)"
+                echo "  Stage 6: Azure Boards Integration - $(dependencies.AzureBoardsIntegration.result)"
+                echo "  Stage 7: Mannequin Reclamation - $(dependencies.MannequinReclamation.result)"
+                echo "  Stage 8: Disable ADO Repos - $(dependencies.DisableADORepositories.result)"
+                echo ""
+                echo "Pipeline Status: Completed"
+                echo "Optional stages (7, 8) may show 'Canceled' if skipped - this is normal."
+                echo ""
+                echo "Check artifacts for detailed logs from each stage."
                 echo "=========================================="
