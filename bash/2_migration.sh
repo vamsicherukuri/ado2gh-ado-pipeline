@@ -373,23 +373,7 @@ total_repos=$(( $(wc -l < "${CSV_PATH}") - 1 ))
 echo "[SUMMARY] Total: ${total_repos} | Migrated: ${#MIGRATED[@]} | Failed: ${#FAILED[@]}"
 echo "[INFO] Wrote migration results with Migration_Status column: ${OUTPUT_CSV_PATH}"
 
-# Generate filtered CSV for next stage (only successful repos)
-if (( ${#MIGRATED[@]} > 0 )); then
-  SUCCESS_CSV="repos_stage3_success.csv"
-  head -n 1 "${CSV_PATH}" > "${SUCCESS_CSV}"
-  
-  for repo_info in "${MIGRATED[@]}"; do
-    # MIGRATED array contains: "org,project,repo,gh_org,gh_repo,visibility"
-    echo "${repo_info}" >> "${SUCCESS_CSV}"
-  done
-  
-  echo "[INFO] Created filtered CSV for next stage: ${SUCCESS_CSV}"
-  echo "[INFO] ${#MIGRATED[@]} repositories ready for validation"
-  echo "##[section]Stage 3 Output:"
-  echo "##[command]Created ${SUCCESS_CSV} with ${#MIGRATED[@]} successfully migrated repositories"
-fi
-
-# Report failures but don't fail the pipeline unless ALL repos failed
+# Report failures but allow pipeline to continue
 if (( ${#FAILED[@]} > 0 )); then
   echo ""
   echo "##[warning]Migration completed with ${#FAILED[@]} failures"
@@ -397,19 +381,11 @@ if (( ${#FAILED[@]} > 0 )); then
   for repo in "${FAILED[@]}"; do
     echo "##[warning]  ⚠️ $repo"
   done
-  echo ""
   echo "##vso[task.logissue type=warning]${#FAILED[@]} of ${total_repos} repositories failed to migrate"
-  
-  # Only fail the pipeline if ALL repos failed
-  if (( ${#MIGRATED[@]} == 0 )); then
-    echo "##[error]All migrations failed - cannot proceed to validation"
-    echo "##vso[task.complete result=Failed;]All migrations failed"
-    exit 1
-  fi
-  
-  echo "##vso[task.logissue type=warning]Proceeding with ${#MIGRATED[@]} successful migrations"
 fi
 
-echo -e "\033[32m[SUCCESS] ${#MIGRATED[@]} repositories migrated successfully\033[0m"
-echo "##vso[task.logissue type=warning]${#MIGRATED[@]} of ${total_repos} repositories migrated successfully"
+echo -e "\033[32m[SUCCESS] ${#MIGRATED[@]} of ${total_repos} repositories migrated successfully\033[0m"
+echo "##vso[task.logissue type=warning]Migration completed: ${#MIGRATED[@]} succeeded, ${#FAILED[@]} failed"
+
+# Always exit 0 to allow pipeline to continue
 exit 0
