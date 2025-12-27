@@ -348,6 +348,7 @@ stages:
         steps:
           - task: ManualValidation@0
             displayName: 'Validation Had Failures - Review and Approve'
+            continueOnError: true
             inputs:
               notifyUsers: '$(Build.RequestedForEmail)'
               instructions: |
@@ -469,6 +470,7 @@ stages:
         steps:
           - task: ManualValidation@0
             displayName: 'Rewiring Had Failures - Review and Approve'
+            continueOnError: true
             inputs:
               notifyUsers: '$(Build.RequestedForEmail)'
               instructions: |
@@ -608,6 +610,7 @@ stages:
         steps:
           - task: ManualValidation@0
             displayName: 'Boards Integration Had Failures - Review and Approve'
+            continueOnError: true
             inputs:
               notifyUsers: '$(Build.RequestedForEmail)'
               instructions: |
@@ -712,6 +715,7 @@ stages:
         steps:
           - task: ManualValidation@0
             displayName: 'Confirm CSV Updated and Committed'
+            continueOnError: true
             inputs:
               notifyUsers: '$(Build.RequestedForEmail)'
               instructions: |
@@ -781,6 +785,7 @@ stages:
         steps:
           - task: ManualValidation@0
             displayName: 'Mannequin Reclamation Had Failures - Review and Approve'
+            continueOnError: true
             inputs:
               notifyUsers: '$(Build.RequestedForEmail)'
               instructions: |
@@ -822,6 +827,7 @@ stages:
         steps:
           - task: ManualValidation@0
             displayName: 'Review & Approve Disabling ADO Repos'
+            continueOnError: true
             inputs:
               notifyUsers: '$(Build.RequestedForEmail)'
               instructions: |
