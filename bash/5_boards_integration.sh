@@ -75,6 +75,17 @@ validate_prerequisites() {
     fi
     log_success "repos_with_status.csv found"
     
+    # Check if any repos succeeded migration
+    local success_count
+    success_count=$(tail -n +2 "repos_with_status.csv" | grep -c ",Success$" || true)
+    if [ "$success_count" -eq 0 ]; then
+        log_error "No successfully migrated repositories found"
+        log_error "All repositories failed migration. Cannot proceed with boards integration."
+        echo "##[error]No successfully migrated repositories - all migrations failed"
+        exit 1
+    fi
+    log_success "Found $success_count successfully migrated repositories"
+    
     # Check for required environment variables
     if [ -z "${ADO_PAT:-}" ]; then
         log_error "ADO_PAT environment variable is not set"
@@ -200,25 +211,28 @@ print_summary() {
     echo "Log file: ${LOG_FILE}" | tee -a "$LOG_FILE"
     echo "==========================================================================" | tee -a "$LOG_FILE"
     
-    # Downstream stages should not fail completely, only show partial success
-    if [ $FAILED_INTEGRATIONS -gt 0 ]; then
+    # Handle integration results
+    if [ $TOTAL_REPOS -eq 0 ]; then
+        log_error "No repositories were processed"
+        echo "##[error]Azure Boards integration: No repositories found to process - all migrations may have failed"
+        exit 1
+    elif [ $SUCCESSFUL_INTEGRATIONS -eq 0 ]; then
+        log_error "All $FAILED_INTEGRATIONS repositories failed boards integration"
+        echo "##[error]All repositories failed Azure Boards integration"
+        exit 1
+    elif [ $FAILED_INTEGRATIONS -gt 0 ]; then
         log_warning "Azure Boards integration completed with issues"
-        echo "##[warning]⚠️ Boards integration completed with issues: $SUCCESSFUL_INTEGRATIONS succeeded, $FAILED_INTEGRATIONS failed"
+        echo "##[warning]⚠️ Boards integration completed with PARTIAL SUCCESS: $SUCCESSFUL_INTEGRATIONS succeeded, $FAILED_INTEGRATIONS failed"
         echo "##vso[task.logissue type=warning]Partial success: $SUCCESSFUL_INTEGRATIONS succeeded, $FAILED_INTEGRATIONS failed"
         
         # Use task.complete to set result as SucceededWithIssues
         echo "##vso[task.complete result=SucceededWithIssues;]Boards integration completed with issues"
-    elif [ $TOTAL_REPOS -eq 0 ]; then
-        log_warning "No repositories were processed."
-        echo "##[warning]No repositories were processed"
-        echo "##vso[task.logissue type=warning]Azure Boards integration: No repositories found to process"
+        exit 0
     else
         log_success "Azure Boards integration completed successfully!"
         echo "##[section]✅ All $SUCCESSFUL_INTEGRATIONS repositories integrated successfully with Azure Boards"
+        exit 0
     fi
-    
-    # Always exit 0 to allow pipeline to continue
-    exit 0
 }
 
 ################################################################################

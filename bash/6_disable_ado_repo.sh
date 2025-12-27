@@ -79,6 +79,17 @@ validate_prerequisites() {
     fi
     log_success "repos_with_status.csv found"
     
+    # Check if any repos succeeded migration
+    local success_count
+    success_count=$(tail -n +2 "repos_with_status.csv" | grep -c ",Success$" || true)
+    if [ "$success_count" -eq 0 ]; then
+        log_error "No successfully migrated repositories found"
+        log_error "All repositories failed migration. Cannot proceed with disabling."
+        echo "##[error]No successfully migrated repositories - all migrations failed"
+        exit 1
+    fi
+    log_success "Found $success_count successfully migrated repositories"
+    
     # Check for required environment variables
     if [ -z "${ADO_PAT:-}" ]; then
         log_error "ADO_PAT environment variable is not set"

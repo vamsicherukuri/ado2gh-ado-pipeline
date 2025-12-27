@@ -216,7 +216,6 @@ stages:
               GH_PAT: $(GH_PAT)
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 120  # 2 hours timeout for large migrations
-            continueOnError: true  # Don't fail job if some repos fail
 
           - task: PublishBuildArtifacts@1
             displayName: 'Publish repos_with_status.csv'
@@ -298,7 +297,6 @@ stages:
               GH_PAT: $(GH_PAT)
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 60
-            continueOnError: true
 
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Validation Logs'
@@ -414,7 +412,6 @@ stages:
               GH_PAT: $(GH_PAT)
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 60
-            continueOnError: true
 
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Rewiring Logs'
@@ -446,7 +443,7 @@ stages:
     condition: |
       and(
         eq('${{ parameters.runAzureBoardsIntegration }}', true),
-        in(dependencies.PipelineRewiring.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped', 'Canceled')
+        in(dependencies.PipelineRewiring.result, 'Succeeded', 'SucceededWithIssues')
       )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from azure-boards-integration-secrets)
     # IMPORTANT: This stage uses a SEPARATE variable group with ADO_PAT having limited Boards-only scopes
@@ -537,7 +534,6 @@ stages:
               ADO_PAT: $(ADO_PAT)
               GH_PAT: $(GH_PAT)
             timeoutInMinutes: 60
-            continueOnError: true
 
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Azure Boards Integration Logs'
@@ -569,7 +565,7 @@ stages:
     condition: |
       and(
         eq('${{ parameters.runDisableADORepos }}', true),
-        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped', 'Canceled')
+        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Skipped')
       )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
@@ -631,7 +627,6 @@ stages:
               GH_PAT: $(GH_PAT)
               ADO_PAT: $(ADO_PAT)
             timeoutInMinutes: 60
-            continueOnError: true
 
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Disable Repos Logs'

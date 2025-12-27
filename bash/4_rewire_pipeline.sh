@@ -101,6 +101,14 @@ load_migrated_repos() {
     done < <(tail -n +2 "$repos_status_csv")
     
     echo -e "${GREEN}✅ Loaded ${#MIGRATED_REPOS[@]} successfully migrated repositories${NC}"
+    
+    # Exit if no repos migrated successfully
+    if [ ${#MIGRATED_REPOS[@]} -eq 0 ]; then
+        echo -e "${RED}❌ ERROR: No successfully migrated repositories found${NC}"
+        echo -e "${YELLOW}   All repositories failed migration. Cannot proceed with rewiring.${NC}"
+        echo "##[error]No successfully migrated repositories to rewire - all migrations failed"
+        exit 1
+    fi
 }
 
 # Function to parse CSV line properly (handles quoted fields)

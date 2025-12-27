@@ -276,6 +276,17 @@ validate_from_csv() {
         write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: Make sure Stage 3 (Migration) completed successfully and published repos_with_status.csv"
         return 1
     fi
+    
+    # Check if any repos succeeded migration
+    local success_count
+    success_count=$(tail -n +2 "$csv_path" | grep -c ",Success$" || true)
+    if [ "$success_count" -eq 0 ]; then
+        write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: No successfully migrated repositories found in $csv_path"
+        write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: All repositories failed migration. Cannot proceed with validation."
+        echo "##[error]No successfully migrated repositories to validate - all migrations failed"
+        return 1
+    fi
+    write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Found $success_count successfully migrated repositories to validate"
 
     # Use process substitution to avoid subshell issue with while loop
     while IFS= read -r line; do
@@ -324,15 +335,32 @@ echo "##vso[task.logissue type=warning]Post-migration validation completed: $VAL
 # EXIT WITH APPROPRIATE STATUS
 # ========================================
 
-# Downstream stages should not fail completely, only show partial success
+# ========================================
+# Fail if no repositories were processed at all
+# ========================================
+if [ $VALIDATION_SUCCESSES -eq 0 ] && [ $VALIDATION_FAILURES -eq 0 ]; then
+    echo "##[error]❌ No repositories were validated - all migrations may have failed"
+    echo "##vso[task.logissue type=error]Validation failed: No repositories to validate"
+    exit 1
+fi
+
+# ========================================
+# Handle validation results
+# ========================================
 if [ $VALIDATION_FAILURES -eq 0 ]; then
     # All successful
-    echo "##[section]✅ All repositories validated successfully"
+    echo "##[section]✅ All $VALIDATION_SUCCESSES repositories validated successfully"
     exit 0
     
+elif [ $VALIDATION_SUCCESSES -eq 0 ]; then
+    # All failed validation
+    echo "##[error]❌ All $VALIDATION_FAILURES repositories failed validation"
+    echo "##vso[task.logissue type=error]Validation failed: All repositories had validation errors"
+    exit 1
+    
 else
-    # Partial success or some failed - downstream stage should continue
-    echo "##[warning]⚠️ Validation completed with issues: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
+    # Partial success - some succeeded, some failed
+    echo "##[warning]⚠️ Validation completed with PARTIAL SUCCESS: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
     echo "##vso[task.logissue type=warning]Partial success: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
     
     # Use task.complete to set result as SucceededWithIssues
