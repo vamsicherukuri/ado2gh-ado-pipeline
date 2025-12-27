@@ -387,7 +387,7 @@ for result in "${RESULTS[@]}"; do
 done
 
 # Show details for already migrated pipelines
-if [ ${#ALREADY_MIGRATED_DETAILS[@]} -gt 0 ]; then
+if [ -n "${ALREADY_MIGRATED_DETAILS+x}" ] && [ ${#ALREADY_MIGRATED_DETAILS[@]} -gt 0 ]; then
     echo -e "\n${YELLOW}⚠️  Already on GitHub (No rewiring needed):${NC}"
     for detail in "${ALREADY_MIGRATED_DETAILS[@]}"; do
         echo -e "${GRAY}   • $detail${NC}"
@@ -395,7 +395,7 @@ if [ ${#ALREADY_MIGRATED_DETAILS[@]} -gt 0 ]; then
 fi
 
 # Show details for failed pipelines
-if [ ${#FAILED_DETAILS[@]} -gt 0 ]; then
+if [ -n "${FAILED_DETAILS+x}" ] && [ ${#FAILED_DETAILS[@]} -gt 0 ]; then
     echo -e "\n${RED}❌ Failed Pipelines:${NC}"
     for detail in "${FAILED_DETAILS[@]}"; do
         echo -e "${GRAY}   • $detail${NC}"
@@ -415,13 +415,13 @@ Already on GitHub: $ALREADY_MIGRATED_COUNT
 Failed: $FAILURE_COUNT
 
 Detailed Results:
-$(printf '%s\n' "${RESULTS[@]}")
+$([ ${#RESULTS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${RESULTS[@]}" || echo "None")
 
 Already on GitHub Details:
-$(printf '%s\n' "${ALREADY_MIGRATED_DETAILS[@]}")
+$([ ${#ALREADY_MIGRATED_DETAILS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${ALREADY_MIGRATED_DETAILS[@]}" || echo "None")
 
 Failed Pipeline Details:
-$(printf '%s\n' "${FAILED_DETAILS[@]}")
+$([ ${#FAILED_DETAILS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${FAILED_DETAILS[@]}" || echo "None")
 ========================================
 EOF
 
