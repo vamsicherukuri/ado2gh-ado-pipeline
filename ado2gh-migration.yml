@@ -11,6 +11,11 @@ parameters:
   type: boolean
   default: false
 
+- name: runDemoRepoMigration
+  displayName: 'Demo Mode: Run Migration Only (Skip Stages 4-7)'
+  type: boolean
+  default: false
+
 variables:
   # Variable group for migration-related PAT tokens (Stages 1-7)
   # Contains: GH_PAT, ADO_PAT (for migration, readiness checks, validation, rewiring, boards integration, disable repos)
@@ -237,7 +242,11 @@ stages:
   - stage: PostMigrationValidation
     displayName: 'Stage 4: Migration Validation'
     dependsOn: Migration
-    condition: in(dependencies.Migration.result, 'Succeeded', 'SucceededWithIssues')
+    condition: |
+      and(
+        eq('${{ parameters.runDemoRepoMigration }}', false),
+        in(dependencies.Migration.result, 'Succeeded', 'SucceededWithIssues')
+      )
     # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
       - job: ValidationCheck
@@ -332,7 +341,11 @@ stages:
     dependsOn:
       - Migration
       - PostMigrationValidation
-    condition: in(dependencies.Migration.result, 'Succeeded', 'SucceededWithIssues')
+    condition: |
+      and(
+        eq('${{ parameters.runDemoRepoMigration }}', false),
+        in(dependencies.Migration.result, 'Succeeded', 'SucceededWithIssues')
+      )
     # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
       - job: RewirePipelines
@@ -447,6 +460,7 @@ stages:
       - PipelineRewiring
     condition: |
       and(
+        eq('${{ parameters.runDemoRepoMigration }}', false),
         eq('${{ parameters.runAzureBoardsIntegration }}', true),
         in(dependencies.Migration.result, 'Succeeded', 'SucceededWithIssues')
       )
@@ -573,6 +587,7 @@ stages:
       - AzureBoardsIntegration
     condition: |
       and(
+        eq('${{ parameters.runDemoRepoMigration }}', false),
         eq('${{ parameters.runDisableADORepos }}', true),
         in(dependencies.Migration.result, 'Succeeded', 'SucceededWithIssues')
       )
