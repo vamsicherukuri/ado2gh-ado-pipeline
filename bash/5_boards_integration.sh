@@ -226,8 +226,8 @@ print_summary() {
         echo "##[warning]⚠️ Boards integration completed with PARTIAL SUCCESS: $SUCCESSFUL_INTEGRATIONS succeeded, $FAILED_INTEGRATIONS failed"
         echo "##vso[task.logissue type=warning]Partial success: $SUCCESSFUL_INTEGRATIONS succeeded, $FAILED_INTEGRATIONS failed"
         
-        # Use task.complete to set result as SucceededWithIssues
-        echo "##vso[task.complete result=SucceededWithIssues;]Boards integration completed with issues"
+        # Set task result to SucceededWithIssues and exit successfully
+        echo "##vso[task.complete result=SucceededWithIssues]Boards integration completed with partial success"
         exit 0
     else
         log_success "Azure Boards integration completed successfully!"

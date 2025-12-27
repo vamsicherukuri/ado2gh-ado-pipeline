@@ -357,7 +357,7 @@ elif [ $VALIDATION_SUCCESSES -eq 0 ]; then
     # All failed validation - but continue pipeline anyway
     echo "##[warning]⚠️ All $VALIDATION_FAILURES repositories failed validation"
     echo "##vso[task.logissue type=warning]Validation failed: All repositories had validation errors, but continuing pipeline"
-    echo "##vso[task.complete result=SucceededWithIssues;]All validations failed but continuing pipeline"
+    echo "##vso[task.complete result=SucceededWithIssues]All validations failed but continuing pipeline"
     exit 0
     
 else
@@ -365,7 +365,7 @@ else
     echo "##[warning]⚠️ Validation completed with PARTIAL SUCCESS: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
     echo "##vso[task.logissue type=warning]Partial success: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
     
-    # Use task.complete to set result as SucceededWithIssues
-    echo "##vso[task.complete result=SucceededWithIssues;]Validation completed with issues"
+    # Set task result to SucceededWithIssues and exit successfully
+    echo "##vso[task.complete result=SucceededWithIssues]Validation completed with partial success"
     exit 0
 fi

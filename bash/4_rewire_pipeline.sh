@@ -473,7 +473,7 @@ else
         done
     fi
     
-    # Use task.complete to set result as SucceededWithIssues
-    echo "##vso[task.complete result=SucceededWithIssues;]Rewiring completed with issues"
+    # Set task result to SucceededWithIssues and exit successfully
+    echo "##vso[task.complete result=SucceededWithIssues]Rewiring completed with partial success"
     exit 0
 fi

@@ -437,7 +437,7 @@ else
   echo "##[warning]⚠️ Migration completed with PARTIAL SUCCESS: ${#MIGRATED[@]} succeeded, ${#FAILED[@]} failed"
   echo "##vso[task.logissue type=warning]Partial success: ${#MIGRATED[@]} succeeded, ${#FAILED[@]} failed"
   
-  # Use task.complete to set result as SucceededWithIssues
-  echo "##vso[task.complete result=SucceededWithIssues;]Migration completed with issues"
+  # Set task result to SucceededWithIssues and exit successfully
+  echo "##vso[task.complete result=SucceededWithIssues]Migration completed with partial success"
   exit 0
 fi
