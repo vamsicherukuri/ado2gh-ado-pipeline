@@ -583,6 +583,28 @@ stages:
         steps:
           - checkout: self
 
+          - task: DownloadBuildArtifacts@1
+            displayName: 'Download repos_with_status.csv'
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'migration-results'
+              downloadPath: '$(System.DefaultWorkingDirectory)'
+
+          - task: Bash@3
+            displayName: 'Prepare repos_with_status.csv'
+            inputs:
+              targetType: 'inline'
+              script: |
+                # Move repos_with_status.csv to root for scripts to use
+                if [ -f "$(System.DefaultWorkingDirectory)/migration-results/repos_with_status.csv" ]; then
+                  cp "$(System.DefaultWorkingDirectory)/migration-results/repos_with_status.csv" "$(System.DefaultWorkingDirectory)/repos_with_status.csv"
+                  echo "✅ repos_with_status.csv loaded ($(wc -l < repos_with_status.csv) lines)"
+                else
+                  echo "##[error]repos_with_status.csv not found in artifacts"
+                  exit 1
+                fi
+
           - task: Bash@3
             displayName: 'Install GitHub CLI'
             inputs:
