@@ -1,16 +1,6 @@
 trigger: none
 
 parameters:
-- name: runAzureBoardsIntegration
-  displayName: 'Run Azure Boards Integration (Stage 6)'
-  type: boolean
-  default: true
-
-- name: runDisableADORepos
-  displayName: 'Disable ADO Repositories (Stage 7)'
-  type: boolean
-  default: false
-
 - name: runDemoRepoMigration
   displayName: 'Demo Mode: Run Migration Only (Skip Stages 4-7)'
   type: boolean
@@ -461,7 +451,6 @@ stages:
     condition: |
       and(
         eq('${{ parameters.runDemoRepoMigration }}', false),
-        eq('${{ parameters.runAzureBoardsIntegration }}', true),
         in(dependencies.Migration.result, 'Succeeded', 'SucceededWithIssues')
       )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from azure-boards-integration-secrets)
@@ -588,7 +577,6 @@ stages:
     condition: |
       and(
         eq('${{ parameters.runDemoRepoMigration }}', false),
-        eq('${{ parameters.runDisableADORepos }}', true),
         in(dependencies.Migration.result, 'Succeeded', 'SucceededWithIssues')
       )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from core-entauto-github-migration-secrets)
