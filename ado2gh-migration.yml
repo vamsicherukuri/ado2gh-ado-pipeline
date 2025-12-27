@@ -503,7 +503,7 @@ stages:
     condition: |
       and(
         eq('${{ parameters.runAzureBoardsIntegration }}', true),
-        in(dependencies.PipelineRewiring.result, 'Succeeded', 'SucceededWithIssues')
+        in(dependencies.PipelineRewiring.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped', 'Canceled')
       )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from azure-boards-integration-secrets)
     # IMPORTANT: This stage uses a SEPARATE variable group with ADO_PAT having limited Boards-only scopes
@@ -636,7 +636,7 @@ stages:
     condition: |
       and(
         eq('${{ parameters.runMannequinReclamation }}', true),
-        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped')
+        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped', 'Canceled')
       )
     jobs:
       - job: WaitForApprovalToStartMannequins
@@ -810,8 +810,8 @@ stages:
     condition: |
       and(
         eq('${{ parameters.runDisableADORepos }}', true),
-        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped'),
-        in(dependencies.MannequinReclamation.result, 'Succeeded', 'SucceededWithIssues', 'Skipped', 'Canceled')
+        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped', 'Canceled'),
+        in(dependencies.MannequinReclamation.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped', 'Canceled')
       )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
