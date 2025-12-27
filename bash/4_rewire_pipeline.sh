@@ -67,7 +67,10 @@ NC='\033[0m' # No Color
 # Counters
 SUCCESS_COUNT=0
 FAILURE_COUNT=0
+ALREADY_MIGRATED_COUNT=0
 declare -a RESULTS
+declare -a FAILED_DETAILS
+declare -a ALREADY_MIGRATED_DETAILS
 
 # ========================================
 # HELPER FUNCTIONS
@@ -263,24 +266,58 @@ while IFS= read -r line; do
     echo -e "${GRAY}      GitHub: $GITHUB_ORG/$GITHUB_REPO${NC}"
     echo -e "${GRAY}      Service Connection: $SERVICE_CONNECTION_ID${NC}"
     
-    # Execute gh ado2gh rewire-pipeline
+    # Capture output and error from gh ado2gh rewire-pipeline
+    OUTPUT_FILE=$(mktemp)
+    ERROR_FILE=$(mktemp)
+    
     if gh ado2gh rewire-pipeline \
         --ado-org "$ADO_ORG" \
         --ado-team-project "$ADO_PROJECT" \
         --ado-pipeline "$ADO_PIPELINE" \
         --github-org "$GITHUB_ORG" \
         --github-repo "$GITHUB_REPO" \
-        --service-connection-id "$SERVICE_CONNECTION_ID"; then
+        --service-connection-id "$SERVICE_CONNECTION_ID" > "$OUTPUT_FILE" 2> "$ERROR_FILE"; then
         
-        SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
-        echo -e "${GREEN}      ✅ SUCCESS${NC}"
-        RESULTS+=("✅ SUCCESS | $ADO_PROJECT/$ADO_PIPELINE → $GITHUB_ORG/$GITHUB_REPO")
+        # Check if already on GitHub (detect from output/warnings)
+        OUTPUT_CONTENT=$(cat "$OUTPUT_FILE" "$ERROR_FILE")
+        
+        if echo "$OUTPUT_CONTENT" | grep -qi "repository.*type.*GitHub\|already.*github\|404.*Not Found"; then
+            ALREADY_MIGRATED_COUNT=$((ALREADY_MIGRATED_COUNT + 1))
+            echo -e "${YELLOW}      ⚠️  ALREADY ON GITHUB (No rewiring needed)${NC}"
+            echo "##[warning]Pipeline '$ADO_PROJECT/$ADO_PIPELINE' already points to GitHub repository. No rewiring needed."
+            
+            # Extract relevant warning message
+            WARNING_MSG=$(echo "$OUTPUT_CONTENT" | grep -i "warning\|404\|Not Found" | head -n 1)
+            if [ -z "$WARNING_MSG" ]; then
+                WARNING_MSG="Pipeline repository type is already 'GitHub'"
+            fi
+            
+            RESULTS+=("⚠️  ALREADY ON GITHUB | $ADO_PROJECT/$ADO_PIPELINE → $GITHUB_ORG/$GITHUB_REPO")
+            ALREADY_MIGRATED_DETAILS+=("$ADO_PROJECT/$ADO_PIPELINE: $WARNING_MSG")
+        else
+            SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+            echo -e "${GREEN}      ✅ SUCCESS${NC}"
+            RESULTS+=("✅ SUCCESS | $ADO_PROJECT/$ADO_PIPELINE → $GITHUB_ORG/$GITHUB_REPO")
+        fi
     else
         FAILURE_COUNT=$((FAILURE_COUNT + 1))
         echo -e "${RED}      ❌ FAILED${NC}"
-        echo "##[error]Failed to rewire pipeline: $ADO_PROJECT/$ADO_PIPELINE"
+        
+        # Capture error message
+        ERROR_CONTENT=$(cat "$ERROR_FILE" "$OUTPUT_FILE")
+        ERROR_MSG=$(echo "$ERROR_CONTENT" | grep -i "error\|fail\|exception" | head -n 3 | tr '\n' ' ')
+        if [ -z "$ERROR_MSG" ]; then
+            ERROR_MSG="Unknown error during pipeline rewiring"
+        fi
+        
+        echo -e "${RED}      Error: $ERROR_MSG${NC}"
+        echo "##[error]Failed to rewire pipeline: $ADO_PROJECT/$ADO_PIPELINE - $ERROR_MSG"
         RESULTS+=("❌ FAILED | $ADO_PROJECT/$ADO_PIPELINE → $GITHUB_ORG/$GITHUB_REPO")
+        FAILED_DETAILS+=("$ADO_PROJECT/$ADO_PIPELINE: $ERROR_MSG")
     fi
+    
+    # Cleanup temp files
+    rm -f "$OUTPUT_FILE" "$ERROR_FILE"
     
     sleep 1
     
@@ -294,12 +331,29 @@ echo -e "${CYAN}  Pipeline Rewiring Summary${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo -e "Total Pipelines: $PIPELINE_COUNT"
 echo -e "${GREEN}Successful: $SUCCESS_COUNT${NC}"
+echo -e "${YELLOW}Already on GitHub: $ALREADY_MIGRATED_COUNT${NC}"
 echo -e "${RED}Failed: $FAILURE_COUNT${NC}"
 
 echo -e "\n${CYAN}📋 Detailed Results:${NC}"
 for result in "${RESULTS[@]}"; do
     echo -e "${GRAY}   $result${NC}"
 done
+
+# Show details for already migrated pipelines
+if [ ${#ALREADY_MIGRATED_DETAILS[@]} -gt 0 ]; then
+    echo -e "\n${YELLOW}⚠️  Already on GitHub (No rewiring needed):${NC}"
+    for detail in "${ALREADY_MIGRATED_DETAILS[@]}"; do
+        echo -e "${GRAY}   • $detail${NC}"
+    done
+fi
+
+# Show details for failed pipelines
+if [ ${#FAILED_DETAILS[@]} -gt 0 ]; then
+    echo -e "\n${RED}❌ Failed Pipelines:${NC}"
+    for detail in "${FAILED_DETAILS[@]}"; do
+        echo -e "${GRAY}   • $detail${NC}"
+    done
+fi
 
 # Generate log file
 TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
@@ -310,10 +364,17 @@ Pipeline Rewiring Log - $TIMESTAMP
 ========================================
 Total Pipelines: $PIPELINE_COUNT
 Successful: $SUCCESS_COUNT
+Already on GitHub: $ALREADY_MIGRATED_COUNT
 Failed: $FAILURE_COUNT
 
 Detailed Results:
 $(printf '%s\n' "${RESULTS[@]}")
+
+Already on GitHub Details:
+$(printf '%s\n' "${ALREADY_MIGRATED_DETAILS[@]}")
+
+Failed Pipeline Details:
+$(printf '%s\n' "${FAILED_DETAILS[@]}")
 ========================================
 EOF
 
@@ -322,13 +383,52 @@ echo -e "\n${GRAY}📄 Log saved: $LOG_FILE${NC}"
 # ========================================
 # EXIT WITH APPROPRIATE STATUS
 # ========================================
-if [ $FAILURE_COUNT -gt 0 ]; then
-    echo -e "\n${YELLOW}⚠️  Pipeline rewiring completed with $FAILURE_COUNT failures${NC}"
-    echo "##[warning]Pipeline rewiring completed: $SUCCESS_COUNT succeeded, $FAILURE_COUNT failed"
+
+# Determine exit behavior based on the three scenarios
+ACTUAL_FAILURES=$FAILURE_COUNT  # Only count real errors, not "already migrated"
+ACTUAL_SUCCESSES=$((SUCCESS_COUNT + ALREADY_MIGRATED_COUNT))  # Both are successful outcomes
+
+if [ $ACTUAL_FAILURES -eq 0 ]; then
+    # All successful (including already migrated)
+    if [ $ALREADY_MIGRATED_COUNT -gt 0 ]; then
+        echo -e "\n${GREEN}✅ Pipeline rewiring completed successfully${NC}"
+        echo "##[warning]$ALREADY_MIGRATED_COUNT pipeline(s) already on GitHub - no rewiring needed"
+    else
+        echo -e "\n${GREEN}✅ All pipelines rewired successfully${NC}"
+    fi
+    exit 0
+    
+elif [ $ACTUAL_SUCCESSES -eq 0 ]; then
+    # All failed (no successes at all)
+    echo -e "\n${RED}❌ All pipelines failed to rewire${NC}"
+    echo "##[error]Pipeline rewiring failed: All $FAILURE_COUNT pipeline(s) encountered errors"
+    echo -e "\n${YELLOW}Failed Pipeline Details:${NC}"
+    for detail in "${FAILED_DETAILS[@]}"; do
+        echo "##[error]  $detail"
+    done
+    exit 1
+    
+else
+    # Partial success - some succeeded, some failed
+    echo -e "\n${YELLOW}⚠️  Pipeline rewiring completed with PARTIAL SUCCESS${NC}"
+    echo -e "${GREEN}   ✅ Successful: $SUCCESS_COUNT${NC}"
+    if [ $ALREADY_MIGRATED_COUNT -gt 0 ]; then
+        echo -e "${YELLOW}   ⚠️  Already on GitHub: $ALREADY_MIGRATED_COUNT${NC}"
+    fi
+    echo -e "${RED}   ❌ Failed: $FAILURE_COUNT${NC}"
+    
+    # Output warnings for partial success
+    echo "##[warning]⚠️ Stage completed with PARTIAL SUCCESS: $ACTUAL_SUCCESSES succeeded, $FAILURE_COUNT failed"
+    
+    # Show failed pipeline details as warnings
+    echo -e "\n${YELLOW}Failed Pipeline Details:${NC}"
+    for detail in "${FAILED_DETAILS[@]}"; do
+        echo "##[warning]  Failed: $detail"
+    done
+    
+    # Set output variable to track failures for conditional approval
+    echo "##vso[task.setvariable variable=rewiringHadFailures;isOutput=true]true"
+    
+    # Exit 0 to show as SucceededWithIssues
+    exit 0
 fi
-
-echo "##vso[task.logissue type=warning]Pipeline rewiring completed: $SUCCESS_COUNT succeeded, $FAILURE_COUNT failed"
-echo -e "\n${GREEN}Pipeline rewiring stage completed${NC}"
-
-# Always exit 0 to allow pipeline to continue
-exit 0

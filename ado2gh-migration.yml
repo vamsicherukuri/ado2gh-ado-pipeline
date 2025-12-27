@@ -428,7 +428,7 @@ stages:
       - job: ReviewRewiringFailures
         displayName: '⚠️ Review Rewiring Failures Before Proceeding'
         dependsOn: RewirePipelines
-        condition: failed()
+        condition: eq(dependencies.RewirePipelines.outputs['RewiringTask.rewiringHadFailures'], 'true')
         pool: server
         timeoutInMinutes: 1440
         steps:
@@ -445,7 +445,13 @@ stages:
                 1. Download and review the **rewiring-logs** artifact
                 2. Check which pipelines failed to rewire
                 3. Review error messages and determine root cause
-                4. Assess impact on CI/CD workflows
+                4. Review if any pipelines were already on GitHub (no rewiring needed)
+                5. Assess impact on CI/CD workflows
+                
+                ### 📋 Failure Details
+                Check the logs for:
+                - ❌ Failed pipelines with error messages
+                - ⚠️ Already on GitHub (no action needed)
                 
                 ### ⏭️ Next Stage: Azure Boards Integration
                 If you proceed:
