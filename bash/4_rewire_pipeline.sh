@@ -429,6 +429,7 @@ else
     # Set output variable to track failures for conditional approval
     echo "##vso[task.setvariable variable=rewiringHadFailures;isOutput=true]true"
     
-    # Exit 0 to show as SucceededWithIssues
+    # Use task.complete to set result as SucceededWithIssues
+    echo "##vso[task.complete result=SucceededWithIssues;]Rewiring completed with issues"
     exit 0
 fi

@@ -317,6 +317,29 @@ fi
 
 echo "##vso[task.logissue type=warning]Post-migration validation completed: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
 
-# Always exit 0 to show as SucceededWithIssues rather than Failed
-# Conditional approval gate will check the validationHadFailures output variable
-exit 0
+# ========================================
+# EXIT WITH APPROPRIATE STATUS
+# ========================================
+
+if [ $VALIDATION_FAILURES -eq 0 ]; then
+    # All successful
+    echo "##[section]✅ All repositories validated successfully"
+    exit 0
+    
+elif [ $VALIDATION_SUCCESSES -eq 0 ]; then
+    # All failed
+    echo "##[error]❌ All repositories failed validation"
+    TOTAL_REPOS=$((VALIDATION_SUCCESSES + VALIDATION_FAILURES))
+    echo "##[error]Validation failed: All $TOTAL_REPOS repository(ies) encountered validation errors"
+    echo "##vso[task.logissue type=error]All repositories failed validation"
+    exit 1
+    
+else
+    # Partial success - some succeeded, some failed
+    echo "##[warning]⚠️ Validation completed with PARTIAL SUCCESS: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
+    echo "##vso[task.logissue type=warning]Partial success: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
+    
+    # Use task.complete to set result as SucceededWithIssues
+    echo "##vso[task.complete result=SucceededWithIssues;]Validation completed with issues"
+    exit 0
+fi
