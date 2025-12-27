@@ -414,7 +414,6 @@ for item in "${FAILED[@]}"; do
 done
 
 echo "##[section]✅ Generated ${STATUS_CSV} with ${#MIGRATED[@]} successful and ${#FAILED[@]} failed repositories"
-echo "##vso[task.uploadsummary]${STATUS_CSV}"
 
 # ========================================
 # EXIT WITH APPROPRIATE STATUS
