@@ -932,14 +932,14 @@ stages:
       - job: CompletionSummary
         displayName: 'Pipeline Completion Summary'
         variables:
-          stage1Result: $[ stageDependencies.PrerequisiteValidation.result ]
-          stage2Result: $[ stageDependencies.MigrationReadinessCheck.result ]
-          stage3Result: $[ stageDependencies.Migration.result ]
-          stage4Result: $[ stageDependencies.PostMigrationValidation.result ]
-          stage5Result: $[ stageDependencies.PipelineRewiring.result ]
-          stage6Result: $[ stageDependencies.AzureBoardsIntegration.result ]
-          stage7Result: $[ stageDependencies.MannequinReclamation.result ]
-          stage8Result: $[ stageDependencies.DisableADORepositories.result ]
+          stage1Result: $[ stageDependencies.PrerequisiteValidation.PrerequisiteCheck.result ]
+          stage2Result: $[ stageDependencies.MigrationReadinessCheck.ReadinessApproval.result ]
+          stage3Result: $[ stageDependencies.Migration.MigrateRepositories.result ]
+          stage4Result: $[ stageDependencies.PostMigrationValidation.ValidationCheck.result ]
+          stage5Result: $[ stageDependencies.PipelineRewiring.RewirePipelines.result ]
+          stage6Result: $[ stageDependencies.AzureBoardsIntegration.IntegrateBoards.result ]
+          stage7Result: $[ stageDependencies.MannequinReclamation.GenerateMannequins.result ]
+          stage8Result: $[ stageDependencies.DisableADORepositories.DisableRepos.result ]
         steps:
           - task: PowerShell@2
             displayName: 'Display Pipeline Summary'
