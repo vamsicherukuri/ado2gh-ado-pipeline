@@ -390,7 +390,32 @@ if (( ${#FAILED[@]} > 0 )); then
 fi
 
 echo -e "\033[32m[SUCCESS] ${#MIGRATED[@]} of ${total_repos} repositories migrated successfully\033[0m"
-echo "##vso[task.logissue type=warning]Migration completed: ${#MIGRATED[@]} succeeded, ${#FAILED[@]} failed"
 
-# Always exit 0 to allow pipeline to continue
-exit 0
+# ========================================
+# EXIT WITH APPROPRIATE STATUS
+# ========================================
+
+if (( ${#FAILED[@]} == 0 )); then
+  # All successful
+  echo "##[section]✅ All repositories migrated successfully"
+  exit 0
+  
+elif (( ${#MIGRATED[@]} == 0 )); then
+  # All failed
+  echo "##[error]❌ All repositories failed to migrate"
+  echo "##[error]Migration failed: All $total_repos repository(ies) encountered errors"
+  echo "##vso[task.logissue type=error]All repositories failed to migrate"
+  exit 1
+  
+else
+  # Partial success - some succeeded, some failed
+  echo "##[warning]⚠️ Migration completed with PARTIAL SUCCESS: ${#MIGRATED[@]} succeeded, ${#FAILED[@]} failed"
+  echo "##vso[task.logissue type=warning]Partial success: ${#MIGRATED[@]} succeeded, ${#FAILED[@]} failed"
+  
+  # Set output variable to track failures for conditional approval
+  echo "##vso[task.setvariable variable=migrationHadFailures;isOutput=true]true"
+  
+  # Use task.complete to set result as SucceededWithIssues
+  echo "##vso[task.complete result=SucceededWithIssues;]Migration completed with issues"
+  exit 0
+fi

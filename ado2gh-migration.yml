@@ -232,6 +232,41 @@ stages:
               publishLocation: 'Container'
             continueOnError: true
 
+      - job: ReviewMigrationFailures
+        displayName: '⚠️ Review Migration Failures'
+        dependsOn: MigrateRepositories
+        condition: eq(dependencies.MigrateRepositories.outputs['MigrationTask.migrationHadFailures'], 'true')
+        pool: server
+        timeoutInMinutes: 1440
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Migration Had Failures - Review and Approve'
+            inputs:
+              notifyUsers: '$(Build.RequestedForEmail)'
+              instructions: |
+                ## ⚠️ MIGRATION FAILURES DETECTED
+                
+                Some repositories failed to migrate to GitHub.
+                
+                ### 📊 What to Review
+                1. Download and review the **migration-logs** artifact
+                2. Check the migration results CSV for failed repositories
+                3. Review error messages and determine root cause
+                4. Decide whether to continue with validation for successful repos
+                
+                ### 📋 Failure Categories
+                - Migration errors (network, permissions, etc.)
+                - Repository not found
+                - Service connection issues
+                
+                ### ⏭️ Next Stage: Post-Migration Validation
+                Validation will run on successfully migrated repositories only.
+                
+                ### Options
+                ✅ Click **Resume** to continue to validation
+                ❌ Click **Reject** to stop the pipeline
+              onTimeout: 'reject'
+
   - stage: PostMigrationValidation
     displayName: 'Stage 4: Migration Validation'
     dependsOn: Migration
