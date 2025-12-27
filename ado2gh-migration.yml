@@ -234,8 +234,8 @@ stages:
 
       - job: ReviewMigrationFailures
         displayName: '⚠️ Review Migration Failures'
-        dependsOn: MigrateRepositories
-        condition: eq(dependencies.MigrateRepositories.outputs['MigrationTask.migrationHadFailures'], 'true')
+        dependsOn: RunMigration
+        condition: eq(dependencies.RunMigration.outputs['MigrationTask.migrationHadFailures'], 'true')
         pool: server
         timeoutInMinutes: 1440
         steps:
@@ -969,7 +969,7 @@ stages:
         variables:
           stage1Result: $[ stageDependencies.PrerequisiteValidation.PrerequisiteCheck.result ]
           stage2Result: $[ stageDependencies.MigrationReadinessCheck.ReadinessApproval.result ]
-          stage3Result: $[ stageDependencies.Migration.MigrateRepositories.result ]
+          stage3Result: $[ stageDependencies.Migration.RunMigration.result ]
           stage4Result: $[ stageDependencies.PostMigrationValidation.ValidationCheck.result ]
           stage5Result: $[ stageDependencies.PipelineRewiring.RewirePipelines.result ]
           stage6Result: $[ stageDependencies.AzureBoardsIntegration.IntegrateBoards.result ]
