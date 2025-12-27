@@ -303,6 +303,38 @@ stages:
                 echo ""
                 echo "Review artifacts for detailed migration results."
                 echo "=========================================="
+      
+      - job: ReviewValidationFailures
+        displayName: '⚠️ Review Validation Failures Before Proceeding'
+        dependsOn: ValidationCheck
+        condition: failed()
+        pool: server
+        timeoutInMinutes: 1440
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Validation Had Failures - Review and Approve'
+            inputs:
+              notifyUsers: '$(Build.RequestedForEmail)'
+              instructions: |
+                ## ⚠️ VALIDATION FAILURES DETECTED
+                
+                Some repositories failed post-migration validation checks.
+                
+                ### 📊 What to Review
+                1. Download and review the **validation-logs** artifact
+                2. Check which repositories failed validation
+                3. Review branch counts, commit counts, and SHA mismatches
+                4. Determine if failures are blockers or can be addressed later
+                
+                ### ⏭️ Next Stage: Pipeline Rewiring
+                If you proceed:
+                - Successfully migrated repositories will have their pipelines rewired
+                - Failed repositories will be skipped in subsequent stages
+                
+                ### Options
+                ✅ Click **Resume** to continue with successful repositories
+                ❌ Click **Reject** to stop the pipeline and fix issues first
+              onTimeout: 'reject'
 
   - stage: PipelineRewiring
     displayName: 'Stage 5: Pipeline Rewiring'
@@ -392,8 +424,38 @@ stages:
                 echo ""
                 echo "Check the rewiring-logs artifact for detailed results"
                 echo "Log files: pipeline-rewiring-*.txt"
-                echo "=========================================="
-
+                echo "=========================================="      
+      - job: ReviewRewiringFailures
+        displayName: '⚠️ Review Rewiring Failures Before Proceeding'
+        dependsOn: RewirePipelines
+        condition: failed()
+        pool: server
+        timeoutInMinutes: 1440
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Rewiring Had Failures - Review and Approve'
+            inputs:
+              notifyUsers: '$(Build.RequestedForEmail)'
+              instructions: |
+                ## ⚠️ PIPELINE REWIRING FAILURES DETECTED
+                
+                Some pipelines failed to be rewired to GitHub repositories.
+                
+                ### 📊 What to Review
+                1. Download and review the **rewiring-logs** artifact
+                2. Check which pipelines failed to rewire
+                3. Review error messages and determine root cause
+                4. Assess impact on CI/CD workflows
+                
+                ### ⏭️ Next Stage: Azure Boards Integration
+                If you proceed:
+                - Successfully rewired pipelines will continue to boards integration
+                - Failed pipelines may need manual intervention
+                
+                ### Options
+                ✅ Click **Resume** to continue to Azure Boards Integration
+                ❌ Click **Reject** to stop the pipeline and fix rewiring issues
+              onTimeout: 'reject'
   - stage: AzureBoardsIntegration
     displayName: 'Stage 6: Boards Integration'
     dependsOn: PipelineRewiring
@@ -495,6 +557,37 @@ stages:
                 echo "Check the boards-integration-logs artifact for detailed results"
                 echo "Log file: azure-boards-integration-*.log"
                 echo "=========================================="
+      
+      - job: ReviewBoardsIntegrationFailures
+        displayName: '⚠️ Review Boards Integration Failures'
+        dependsOn: IntegrateBoards
+        condition: failed()
+        pool: server
+        timeoutInMinutes: 1440
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Boards Integration Had Failures - Review and Approve'
+            inputs:
+              notifyUsers: '$(Build.RequestedForEmail)'
+              instructions: |
+                ## ⚠️ AZURE BOARDS INTEGRATION FAILURES DETECTED
+                
+                Some repositories failed Azure Boards integration.
+                
+                ### 📊 What to Review
+                1. Download and review the **boards-integration-logs** artifact
+                2. Check which repositories failed boards integration
+                3. Review error messages and connection issues
+                4. Verify ADO_PAT permissions for Boards integration
+                
+                ### ⏭️ Optional Next Stages
+                - Stage 7: Mannequin Reclamation (Optional)
+                - Stage 8: Disable ADO Repos (Optional)
+                
+                ### Options
+                ✅ Click **Resume** to continue to optional stages
+                ❌ Click **Reject** to stop the pipeline
+              onTimeout: 'reject'
 
   - stage: MannequinReclamation
     displayName: 'Stage 7: Mannequin Reclamation (Optional)'
@@ -637,6 +730,36 @@ stages:
             inputs:
               PathtoPublish: '$(System.DefaultWorkingDirectory)'
               ArtifactName: 'mannequin-reclaim-logs'
+      
+      - job: ReviewMannequinFailures
+        displayName: '⚠️ Review Mannequin Reclamation Failures'
+        dependsOn: ReclaimMannequins
+        condition: failed()
+        pool: server
+        timeoutInMinutes: 1440
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Mannequin Reclamation Had Failures - Review and Approve'
+            inputs:
+              notifyUsers: '$(Build.RequestedForEmail)'
+              instructions: |
+                ## ⚠️ MANNEQUIN RECLAMATION FAILURES DETECTED
+                
+                Some mannequins failed to be reclaimed.
+                
+                ### 📊 What to Review
+                1. Download and review the **mannequin-reclaim-logs** artifact
+                2. Check error messages from gh ado2gh reclaim-mannequin command
+                3. Verify mannequins.csv format and target mappings
+                4. Ensure target GitHub users have accepted organization invitations
+                
+                ### ⏭️ Optional Next Stage
+                - Stage 8: Disable ADO Repos (Optional)
+                
+                ### Options
+                ✅ Click **Resume** to continue to Stage 8
+                ❌ Click **Reject** to stop the pipeline
+              onTimeout: 'reject'
 
   - stage: DisableADORepositories
     displayName: 'Stage 8: Disable ADO Repos (Optional)'
@@ -826,14 +949,45 @@ stages:
                 Write-Host "  Stage 1: Prerequisite Validation - $(stage1Result)"
                 Write-Host "  Stage 2: Migration Readiness - $(stage2Result)"
                 Write-Host "  Stage 3: Migrate Repositories - $(stage3Result)"
+                if ("$(stage3Result)" -eq "SucceededWithIssues") {
+                    Write-Host "           ⚠️ Some repositories failed migration (check migration-logs)"
+                }
                 Write-Host "  Stage 4: Post-Migration Validation - $(stage4Result)"
+                if ("$(stage4Result)" -eq "SucceededWithIssues") {
+                    Write-Host "           ⚠️ Some repositories failed validation (check validation-logs)"
+                }
                 Write-Host "  Stage 5: Rewire Pipelines - $(stage5Result)"
+                if ("$(stage5Result)" -eq "SucceededWithIssues") {
+                    Write-Host "           ⚠️ Some pipelines failed to rewire (check rewiring-logs)"
+                }
                 Write-Host "  Stage 6: Azure Boards Integration - $(stage6Result)"
+                if ("$(stage6Result)" -eq "SucceededWithIssues") {
+                    Write-Host "           ⚠️ Some repositories failed boards integration (check boards-integration-logs)"
+                }
                 Write-Host "  Stage 7: Mannequin Reclamation - $(stage7Result)"
+                if ("$(stage7Result)" -eq "Canceled" -or "$(stage7Result)" -eq "Skipped") {
+                    Write-Host "           ℹ️ Optional stage was skipped"
+                }
                 Write-Host "  Stage 8: Disable ADO Repos - $(stage8Result)"
+                if ("$(stage8Result)" -eq "Canceled" -or "$(stage8Result)" -eq "Skipped") {
+                    Write-Host "           ℹ️ Optional stage was skipped"
+                }
                 Write-Host ""
                 Write-Host "Pipeline Status: Completed"
-                Write-Host "Optional stages (7, 8) may show 'Canceled' if skipped - this is normal."
                 Write-Host ""
-                Write-Host "Check artifacts for detailed logs from each stage."
+                Write-Host "Status Indicators:"
+                Write-Host "  ✅ Succeeded - All operations completed successfully"
+                Write-Host "  ⚠️ SucceededWithIssues - PARTIAL SUCCESS with some failures (review logs)"
+                Write-Host "  ❌ Failed - Stage failed to complete"
+                Write-Host "  ⏸️ Canceled - User rejected manual approval"
+                Write-Host "  ⏭️ Skipped - Stage was skipped due to conditions/parameters"
+                Write-Host ""
+                Write-Host "Artifacts Available:"
+                Write-Host "  - migration-logs: Repository migration details"
+                Write-Host "  - validation-logs: Validation check results"
+                Write-Host "  - rewiring-logs: Pipeline rewiring results"
+                Write-Host "  - boards-integration-logs: Azure Boards integration results"
+                Write-Host "  - mannequin-logs: Mannequin generation/reclamation (if run)"
+                Write-Host "  - disable-repos-logs: ADO repository disable results (if run)"
+                Write-Host ""
                 Write-Host "=========================================="

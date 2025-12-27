@@ -303,6 +303,11 @@ validate_from_csv "bash/repos.csv"
 if [ $VALIDATION_FAILURES -gt 0 ]; then
     echo "##[warning]Post-migration validation completed with $VALIDATION_FAILURES failures"
     echo "##vso[task.logissue type=warning]Validation failed: $VALIDATION_FAILURES repositories had validation errors"
+    
+    # Add partial success indicator when there are both successes and failures
+    if [ $VALIDATION_SUCCESSES -gt 0 ]; then
+        echo "##[warning]⚠️ Stage completed with PARTIAL SUCCESS: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
+    fi
 fi
 
 echo "##vso[task.logissue type=warning]Post-migration validation completed: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"

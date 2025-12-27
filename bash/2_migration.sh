@@ -382,6 +382,11 @@ if (( ${#FAILED[@]} > 0 )); then
     echo "##[warning]  ⚠️ $repo"
   done
   echo "##vso[task.logissue type=warning]${#FAILED[@]} of ${total_repos} repositories failed to migrate"
+  
+  # Add partial success indicator when there are both successes and failures
+  if (( ${#MIGRATED[@]} > 0 )); then
+    echo "##[warning]⚠️ Stage completed with PARTIAL SUCCESS: ${#MIGRATED[@]} succeeded, ${#FAILED[@]} failed"
+  fi
 fi
 
 echo -e "\033[32m[SUCCESS] ${#MIGRATED[@]} of ${total_repos} repositories migrated successfully\033[0m"
