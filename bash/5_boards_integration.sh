@@ -66,13 +66,14 @@ log_section() {
 validate_prerequisites() {
     log_section "VALIDATING PREREQUISITES"
     
-    # Check if repos.csv exists
-    if [ ! -f "bash/repos.csv" ]; then
-        log_error "repos.csv not found at bash/repos.csv"
-        echo "##[error]repos.csv not found at bash/repos.csv"
+    # Check if repos_with_status.csv exists
+    if [ ! -f "repos_with_status.csv" ]; then
+        log_error "repos_with_status.csv not found"
+        log_error "Make sure Stage 3 (Migration) completed successfully and published repos_with_status.csv"
+        echo "##[error]repos_with_status.csv not found - Stage 3 migration may have failed"
         exit 1
     fi
-    log_success "repos.csv found"
+    log_success "repos_with_status.csv found"
     
     # Check for required environment variables
     if [ -z "${ADO_PAT:-}" ]; then
@@ -141,11 +142,11 @@ integrate_azure_boards() {
 ################################################################################
 
 process_repositories() {
-    log_section "PROCESSING REPOSITORIES FROM repos.csv"
+    log_section "PROCESSING REPOSITORIES FROM repos_with_status.csv"
     
     local line_number=0
     
-    while IFS=',' read -r ado_org ado_team_project ado_repo github_org github_repo gh_repo_visibility; do
+    while IFS=',' read -r ado_org ado_team_project ado_repo github_org github_repo gh_repo_visibility migration_status; do
         : $((line_number++))
         
         # Skip header row
@@ -155,6 +156,12 @@ process_repositories() {
         
         # Skip empty lines or lines with missing required fields
         if [ -z "$ado_org" ] || [ -z "$ado_team_project" ] || [ -z "$github_org" ] || [ -z "$github_repo" ]; then
+            continue
+        fi
+        
+        # Skip repositories that failed migration
+        if [ "$migration_status" != "Success" ]; then
+            log_warning "⏭️  Skipping $ado_repo (Migration Status: $migration_status)"
             continue
         fi
         
@@ -175,7 +182,7 @@ process_repositories() {
         
         echo "" | tee -a "$LOG_FILE"
         
-    done < bash/repos.csv
+    done < repos_with_status.csv
 }
 
 ################################################################################
@@ -193,20 +200,24 @@ print_summary() {
     echo "Log file: ${LOG_FILE}" | tee -a "$LOG_FILE"
     echo "==========================================================================" | tee -a "$LOG_FILE"
     
+    # Downstream stages should not fail completely, only show partial success
     if [ $FAILED_INTEGRATIONS -gt 0 ]; then
-        log_warning "Some integrations failed. Please review the log file for details."
-        echo "##[warning]Azure Boards integration completed with $FAILED_INTEGRATIONS failures"
-        echo "##vso[task.logissue type=warning]Boards integration completed: $SUCCESSFUL_INTEGRATIONS succeeded, $FAILED_INTEGRATIONS failed"
+        log_warning "Azure Boards integration completed with issues"
+        echo "##[warning]⚠️ Boards integration completed with issues: $SUCCESSFUL_INTEGRATIONS succeeded, $FAILED_INTEGRATIONS failed"
+        echo "##vso[task.logissue type=warning]Partial success: $SUCCESSFUL_INTEGRATIONS succeeded, $FAILED_INTEGRATIONS failed"
+        
+        # Use task.complete to set result as SucceededWithIssues
+        echo "##vso[task.complete result=SucceededWithIssues;]Boards integration completed with issues"
     elif [ $TOTAL_REPOS -eq 0 ]; then
         log_warning "No repositories were processed."
         echo "##[warning]No repositories were processed"
         echo "##vso[task.logissue type=warning]Azure Boards integration: No repositories found to process"
     else
         log_success "Azure Boards integration completed successfully!"
-        echo "##vso[task.logissue type=warning]All $SUCCESSFUL_INTEGRATIONS repositories integrated successfully with Azure Boards"
+        echo "##[section]✅ All $SUCCESSFUL_INTEGRATIONS repositories integrated successfully with Azure Boards"
     fi
     
-    # Always exit 0 to allow pipeline to complete
+    # Always exit 0 to allow pipeline to continue
     exit 0
 }
 

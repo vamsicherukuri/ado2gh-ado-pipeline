@@ -392,6 +392,31 @@ fi
 echo -e "\033[32m[SUCCESS] ${#MIGRATED[@]} of ${total_repos} repositories migrated successfully\033[0m"
 
 # ========================================
+# GENERATE repos_with_status.csv
+# ========================================
+echo "##[section]📄 Generating repos_with_status.csv for downstream stages..."
+
+STATUS_CSV="repos_with_status.csv"
+
+# Write header
+echo "org,teamproject,repo,github_org,github_repo,gh_repo_visibility,MigrationStatus" > "${STATUS_CSV}"
+
+# Write successful repos
+for item in "${MIGRATED[@]}"; do
+  IFS=',' read -r org tp repo gh_org gh_repo vis <<< "${item}"
+  echo "${org},${tp},${repo},${gh_org},${gh_repo},${vis},Success" >> "${STATUS_CSV}"
+done
+
+# Write failed repos
+for item in "${FAILED[@]}"; do
+  IFS=',' read -r org tp repo gh_org gh_repo vis <<< "${item}"
+  echo "${org},${tp},${repo},${gh_org},${gh_repo},${vis},Failed" >> "${STATUS_CSV}"
+done
+
+echo "##[section]✅ Generated ${STATUS_CSV} with ${#MIGRATED[@]} successful and ${#FAILED[@]} failed repositories"
+echo "##vso[task.uploadsummary]${STATUS_CSV}"
+
+# ========================================
 # EXIT WITH APPROPRIATE STATUS
 # ========================================
 

@@ -71,10 +71,37 @@ ALREADY_MIGRATED_COUNT=0
 declare -a RESULTS
 declare -a FAILED_DETAILS
 declare -a ALREADY_MIGRATED_DETAILS
+declare -A MIGRATED_REPOS  # Track successfully migrated repos
 
 # ========================================
 # HELPER FUNCTIONS
 # ========================================
+
+# Load repos_with_status.csv to filter pipelines
+load_migrated_repos() {
+    local repos_status_csv="repos_with_status.csv"
+    
+    if [ ! -f "$repos_status_csv" ]; then
+        echo -e "${RED}❌ ERROR: repos_with_status.csv not found${NC}"
+        echo -e "${YELLOW}   Make sure Stage 3 (Migration) completed successfully${NC}"
+        exit 1
+    fi
+    
+    echo -e "${YELLOW}Loading successfully migrated repositories...${NC}"
+    
+    # Read repos_with_status.csv and track Success repos
+    while IFS=',' read -r org teamproject repo github_org github_repo visibility status; do
+        # Remove quotes and whitespace
+        repo=$(echo "$repo" | sed 's/^"//;s/"$//;s/^[[:space:]]*//;s/[[:space:]]*$//')
+        status=$(echo "$status" | sed 's/^"//;s/"$//;s/^[[:space:]]*//;s/[[:space:]]*$//')
+        
+        if [ "$status" = "Success" ]; then
+            MIGRATED_REPOS["$repo"]=1
+        fi
+    done < <(tail -n +2 "$repos_status_csv")
+    
+    echo -e "${GREEN}✅ Loaded ${#MIGRATED_REPOS[@]} successfully migrated repositories${NC}"
+}
 
 # Function to parse CSV line properly (handles quoted fields)
 parse_csv_line() {
@@ -99,6 +126,9 @@ parse_csv_line() {
 echo -e "\n${CYAN}========================================${NC}"
 echo -e "${CYAN}  ADO2GH: Rewire Pipelines${NC}"
 echo -e "${CYAN}========================================${NC}\n"
+
+# Load successfully migrated repositories first
+load_migrated_repos
 
 # ========================================
 # STEP 1: Validate PAT Tokens
@@ -256,10 +286,18 @@ while IFS= read -r line; do
     # Extract fields
     ADO_ORG="${fields[${COL_INDEX["org"]}]}"
     ADO_PROJECT="${fields[${COL_INDEX["teamproject"]}]}"
+    ADO_REPO="${fields[${COL_INDEX["repo"]}]}"
     ADO_PIPELINE="${fields[${COL_INDEX["pipeline"]}]}"
     GITHUB_ORG="${fields[${COL_INDEX["github_org"]}]}"
     GITHUB_REPO="${fields[${COL_INDEX["github_repo"]}]}"
     SERVICE_CONNECTION_ID="${fields[${COL_INDEX["serviceConnection"]}]}"
+    
+    # Check if repo successfully migrated
+    if [ -z "${MIGRATED_REPOS[$ADO_REPO]}" ]; then
+        echo -e "\n${YELLOW}   ⏭️  Skipping: $ADO_PIPELINE${NC}"
+        echo -e "${GRAY}      Reason: Repository '$ADO_REPO' failed migration (not in repos_with_status.csv as Success)${NC}"
+        continue
+    fi
     
     echo -e "\n${CYAN}   🔄 Processing: $ADO_PIPELINE${NC}"
     echo -e "${GRAY}      ADO: $ADO_ORG/$ADO_PROJECT${NC}"
@@ -388,6 +426,7 @@ echo -e "\n${GRAY}📄 Log saved: $LOG_FILE${NC}"
 ACTUAL_FAILURES=$FAILURE_COUNT  # Only count real errors, not "already migrated"
 ACTUAL_SUCCESSES=$((SUCCESS_COUNT + ALREADY_MIGRATED_COUNT))  # Both are successful outcomes
 
+# Downstream stages should not fail completely, only show partial success
 if [ $ACTUAL_FAILURES -eq 0 ]; then
     # All successful (including already migrated)
     if [ $ALREADY_MIGRATED_COUNT -gt 0 ]; then
@@ -398,19 +437,9 @@ if [ $ACTUAL_FAILURES -eq 0 ]; then
     fi
     exit 0
     
-elif [ $ACTUAL_SUCCESSES -eq 0 ]; then
-    # All failed (no successes at all)
-    echo -e "\n${RED}❌ All pipelines failed to rewire${NC}"
-    echo "##[error]Pipeline rewiring failed: All $FAILURE_COUNT pipeline(s) encountered errors"
-    echo -e "\n${YELLOW}Failed Pipeline Details:${NC}"
-    for detail in "${FAILED_DETAILS[@]}"; do
-        echo "##[error]  $detail"
-    done
-    exit 1
-    
 else
-    # Partial success - some succeeded, some failed
-    echo -e "\n${YELLOW}⚠️  Pipeline rewiring completed with PARTIAL SUCCESS${NC}"
+    # Partial success or some failed - downstream stage should continue
+    echo -e "\n${YELLOW}⚠️  Pipeline rewiring completed with issues${NC}"
     echo -e "${GREEN}   ✅ Successful: $SUCCESS_COUNT${NC}"
     if [ $ALREADY_MIGRATED_COUNT -gt 0 ]; then
         echo -e "${YELLOW}   ⚠️  Already on GitHub: $ALREADY_MIGRATED_COUNT${NC}"
@@ -418,13 +447,22 @@ else
     echo -e "${RED}   ❌ Failed: $FAILURE_COUNT${NC}"
     
     # Output warnings for partial success
-    echo "##[warning]⚠️ Stage completed with PARTIAL SUCCESS: $ACTUAL_SUCCESSES succeeded, $FAILURE_COUNT failed"
+    echo "##[warning]⚠️ Rewiring completed with issues: $ACTUAL_SUCCESSES succeeded, $FAILURE_COUNT failed"
+    echo "##vso[task.logissue type=warning]Partial success: $ACTUAL_SUCCESSES succeeded, $FAILURE_COUNT failed"
     
     # Show failed pipeline details as warnings
     echo -e "\n${YELLOW}Failed Pipeline Details:${NC}"
     for detail in "${FAILED_DETAILS[@]}"; do
         echo "##[warning]  Failed: $detail"
     done
+    
+    # Show already migrated details if any
+    if [ ${#ALREADY_MIGRATED_DETAILS[@]} -gt 0 ]; then
+        echo -e "\n${YELLOW}Already on GitHub (No action needed):${NC}"
+        for detail in "${ALREADY_MIGRATED_DETAILS[@]}"; do
+            echo "##[warning]  Already migrated: $detail"
+        done
+    fi
     
     # Set output variable to track failures for conditional approval
     echo "##vso[task.setvariable variable=rewiringHadFailures;isOutput=true]true"

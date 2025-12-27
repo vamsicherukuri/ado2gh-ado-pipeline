@@ -262,17 +262,18 @@ parse_csv_line() {
     done
     fields+=("$field")
 
-    # Return: org(0), teamproject(1), repo(2), github_org(3), github_repo(4)
-    # CSV now has 6 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility
-    echo "${fields[0]}" "${fields[1]}" "${fields[2]}" "${fields[3]}" "${fields[4]}"
+    # Return: org(0), teamproject(1), repo(2), github_org(3), github_repo(4), visibility(5), status(6)
+    # CSV now has 7 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility,MigrationStatus
+    echo "${fields[0]}" "${fields[1]}" "${fields[2]}" "${fields[3]}" "${fields[4]}" "${fields[5]}" "${fields[6]}"
 }
 
 # --- Batch validation from CSV ---
 validate_from_csv() {
-    local csv_path="${1:-bash/repos.csv}"
+    local csv_path="${1:-repos_with_status.csv}"
 
     if [ ! -f "$csv_path" ]; then
         write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: CSV file not found: $csv_path"
+        write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: Make sure Stage 3 (Migration) completed successfully and published repos_with_status.csv"
         return 1
     fi
 
@@ -280,8 +281,15 @@ validate_from_csv() {
     while IFS= read -r line; do
         line="${line%$'\r'}"
         [ -z "$line" ] && continue
-        # CSV now has 6 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility
-        read -r org teamproject repo github_org github_repo gh_repo_visibility < <(parse_csv_line "$line")
+        # CSV now has 7 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility,MigrationStatus
+        read -r org teamproject repo github_org github_repo gh_repo_visibility migration_status < <(parse_csv_line "$line")
+        
+        # Skip repositories that failed migration
+        if [ "$migration_status" != "Success" ]; then
+            write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ⏭️  Skipping $repo (Migration Status: $migration_status)"
+            continue
+        fi
+        
         write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Processing: $repo -> $github_repo"
         
         if validate_migration "$org" "$teamproject" "$repo" "$github_org" "$github_repo"; then
@@ -297,7 +305,7 @@ validate_from_csv() {
 }
 
 # Execute batch validation
-validate_from_csv "bash/repos.csv"
+validate_from_csv "repos_with_status.csv"
 
 # Report validation summary
 if [ $VALIDATION_FAILURES -gt 0 ]; then
@@ -321,21 +329,24 @@ echo "##vso[task.logissue type=warning]Post-migration validation completed: $VAL
 # EXIT WITH APPROPRIATE STATUS
 # ========================================
 
+# Downstream stages should not fail completely, only show partial success
 if [ $VALIDATION_FAILURES -eq 0 ]; then
     # All successful
     echo "##[section]✅ All repositories validated successfully"
     exit 0
     
-elif [ $VALIDATION_SUCCESSES -eq 0 ]; then
-    # All failed
-    echo "##[error]❌ All repositories failed validation"
-    TOTAL_REPOS=$((VALIDATION_SUCCESSES + VALIDATION_FAILURES))
-    echo "##[error]Validation failed: All $TOTAL_REPOS repository(ies) encountered validation errors"
-    echo "##vso[task.logissue type=error]All repositories failed validation"
-    exit 1
-    
 else
-    # Partial success - some succeeded, some failed
+    # Partial success or some failed - downstream stage should continue
+    echo "##[warning]⚠️ Validation completed with issues: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
+    echo "##vso[task.logissue type=warning]Partial success: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
+    
+    # Set output variable to track failures for conditional approval
+    echo "##vso[task.setvariable variable=validationHadFailures;isOutput=true]true"
+    
+    # Use task.complete to set result as SucceededWithIssues
+    echo "##vso[task.complete result=SucceededWithIssues;]Validation completed with issues"
+    exit 0
+fi
     echo "##[warning]⚠️ Validation completed with PARTIAL SUCCESS: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
     echo "##vso[task.logissue type=warning]Partial success: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
     
