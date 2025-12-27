@@ -301,8 +301,8 @@ while IFS= read -r line; do
     GITHUB_REPO="${fields[${COL_INDEX["github_repo"]}]}"
     SERVICE_CONNECTION_ID="${fields[${COL_INDEX["serviceConnection"]}]}"
     
-    # Check if repo successfully migrated
-    if [ -z "${MIGRATED_REPOS[$ADO_REPO]}" ]; then
+    # Check if repo successfully migrated (safe check for associative array)
+    if [ -z "${MIGRATED_REPOS[$ADO_REPO]+x}" ]; then
         echo -e "\n${YELLOW}   ⏭️  Skipping: $ADO_PIPELINE${NC}"
         echo -e "${GRAY}      Reason: Repository '$ADO_REPO' failed migration (not in repos_with_status.csv as Success)${NC}"
         continue
