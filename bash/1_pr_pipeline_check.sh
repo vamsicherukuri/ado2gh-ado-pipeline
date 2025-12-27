@@ -33,7 +33,7 @@ fi
 test_org=$(tail -n +2 "$csv_path" | head -n 1 | cut -d',' -f1 | sed 's/^"//;s/"$//')
 test_uri="https://dev.azure.com/$test_org/_apis/projects?api-version=7.1"
 
-statusCode=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $ADO_PAT" -X GET $test_uri)
+statusCode=$(curl -s -o /dev/null -w "%{http_code}" -u ":$ADO_PAT" -X GET $test_uri)
 if [ "$statusCode" -ne 200 ]; then
     echo -e "\033[31m✗ ADO PAT token authentication failed. Please verify your ADO_PAT environment variable is set correctly.\033[0m"
     exit 1
@@ -78,20 +78,28 @@ while IFS= read -r line || [ -n "$line" ]; do
         
         # Get repository ID
         repo_uri="https://dev.azure.com/$enc_ado_org/$enc_ado_project/_apis/git/repositories/${enc_selected_repo_name}?api-version=7.1"
-        repo_response=$(curl -s -H "Authorization: Bearer $ADO_PAT" -H "Content-Type: application/json" "$repo_uri" 2>/dev/null) || true
+        repo_response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -u ":$ADO_PAT" -H "Content-Type: application/json" "$repo_uri" 2>/dev/null) || true
         
-        if [ -n "$repo_response" ]; then
-            repo_id=$(echo "$repo_response" | jq -r '.id // empty' 2>/dev/null)
-            repo_name=$(echo "$repo_response" | jq -r '.name // empty' 2>/dev/null)
+        # Extract HTTP status code
+        http_status=$(echo "$repo_response" | grep -oP 'HTTP_STATUS:\K\d+' || echo "000")
+        repo_body=$(echo "$repo_response" | sed 's/HTTP_STATUS:[0-9]*$//')
+        
+        if [ "$http_status" -eq 200 ] && [ -n "$repo_body" ]; then
+            repo_id=$(echo "$repo_body" | jq -r '.id // empty' 2>/dev/null)
+            repo_name=$(echo "$repo_body" | jq -r '.name // empty' 2>/dev/null)
             
             if [ -n "$repo_id" ] && [ "$repo_id" != "null" ]; then
                 # Get active pull requests using repository ID
                 pr_uri="https://dev.azure.com/$enc_ado_org/$enc_ado_project/_apis/git/repositories/${repo_id}/pullrequests?searchCriteria.status=active&api-version=7.1"
-                pr_response=$(curl -s -H "Authorization: Bearer $ADO_PAT" -H "Content-Type: application/json" "$pr_uri" 2>/dev/null) || true
+                pr_response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -u ":$ADO_PAT" -H "Content-Type: application/json" "$pr_uri" 2>/dev/null) || true
                 
-                if [ -n "$pr_response" ]; then
+                # Extract HTTP status code
+                pr_http_status=$(echo "$pr_response" | grep -oP 'HTTP_STATUS:\K\d+' || echo "000")
+                pr_body=$(echo "$pr_response" | sed 's/HTTP_STATUS:[0-9]*$//')
+                
+                if [ "$pr_http_status" -eq 200 ] && [ -n "$pr_body" ]; then
                     # Parse PR response and add to summary
-                    pr_count=$(echo "$pr_response" | jq -r '.count // 0' 2>/dev/null)
+                    pr_count=$(echo "$pr_body" | jq -r '.count // 0' 2>/dev/null)
                     if [ "$pr_count" -gt 0 ]; then
                         # Use process substitution to avoid subshell issue
                         while IFS='|' read -r title status prId; do
@@ -99,19 +107,28 @@ while IFS= read -r line || [ -n "$line" ]; do
                                 prUrl="https://dev.azure.com/$enc_ado_org/$enc_ado_project/_git/$enc_selected_repo_name/pullrequest/$prId"
                                 active_pr_summary+=("$ado_project|$repo_name|$title|$status|$prUrl")
                             fi
-                        done < <(echo "$pr_response" | jq -r '.value[]? | "\(.title)|\(.status)|\(.pullRequestId)"' 2>/dev/null)
+                        done < <(echo "$pr_body" | jq -r '.value[]? | "\(.title)|\(.status)|\(.pullRequestId)"' 2>/dev/null)
                     fi
                 else
                     pr_check_failed=true
-                    echo -e "\033[31m[ERROR] Failed to process PRs for repository '$selected_repo_name' in project '$ado_project'.\033[0m"
+                    echo -e "\033[31m[ERROR] Failed to get PRs for repository '$selected_repo_name' in project '$ado_project' (HTTP $pr_http_status).\033[0m"
+                    if [ "$pr_http_status" -ne 200 ] && [ "$pr_http_status" -ne 000 ] && [ -n "$pr_body" ]; then
+                        error_msg=$(echo "$pr_body" | jq -r '.message // .Message // empty' 2>/dev/null)
+                        [ -n "$error_msg" ] && echo -e "\033[33m[API Response] $error_msg\033[0m"
+                    fi
                 fi
             else
                 pr_check_failed=true
-                echo -e "\033[31m[ERROR] Failed to process PRs for repository '$selected_repo_name' in project '$ado_project'.\033[0m"
+                echo -e "\033[31m[ERROR] Repository '$selected_repo_name' not found in project '$ado_project'.\033[0m"
+                echo -e "\033[33m[INFO] Verify repository name matches exactly (case-sensitive).\033[0m"
             fi
         else
             pr_check_failed=true
-            echo -e "\033[31m[ERROR] Failed to process PRs for repository '$selected_repo_name' in project '$ado_project'.\033[0m"
+            echo -e "\033[31m[ERROR] Failed to lookup repository '$selected_repo_name' in project '$ado_project' (HTTP $http_status).\033[0m"
+            if [ "$http_status" -ne 200 ] && [ -n "$repo_body" ]; then
+                error_msg=$(echo "$repo_body" | jq -r '.message // .Message // empty' 2>/dev/null)
+                [ -n "$error_msg" ] && echo -e "\033[31m[ERROR] API Response: $error_msg\033[0m"
+            fi
         fi
 done < "$csv_path"
 
@@ -158,7 +175,7 @@ for project in "${unique_projects[@]}"; do
     
     # Check active build pipelines
     builds_uri="https://dev.azure.com/$enc_ado_org/$enc_ado_project/_apis/build/builds?api-version=7.1"
-    builds_response=$(curl -s -H "Authorization: Bearer $ADO_PAT" -H "Content-Type: application/json" "$builds_uri" 2>/dev/null) || true
+    builds_response=$(curl -s -u ":$ADO_PAT" -H "Content-Type: application/json" "$builds_uri" 2>/dev/null) || true
     
     if [ -n "$builds_response" ]; then
         # Parse builds and filter for running/queued ones
@@ -177,14 +194,14 @@ for project in "${unique_projects[@]}"; do
     
     # Check active release pipelines
     releases_uri="https://vsrm.dev.azure.com/$enc_ado_org/$enc_ado_project/_apis/release/releases?api-version=7.1"
-    releases_response=$(curl -s -H "Authorization: Bearer $ADO_PAT" -H "Content-Type: application/json" "$releases_uri" 2>/dev/null) || true
+    releases_response=$(curl -s -u ":$ADO_PAT" -H "Content-Type: application/json" "$releases_uri" 2>/dev/null) || true
     
     if [ -n "$releases_response" ]; then
         # Get release IDs
         while read -r release_id; do
             if [ -n "$release_id" ] && [ "$release_id" != "null" ]; then
                 release_details_uri="https://vsrm.dev.azure.com/$enc_ado_org/$enc_ado_project/_apis/release/releases/${release_id}?api-version=7.1"
-                release_details=$(curl -s -H "Authorization: Bearer $ADO_PAT" -H "Content-Type: application/json" "$release_details_uri" 2>/dev/null) || true
+                release_details=$(curl -s -u ":$ADO_PAT" -H "Content-Type: application/json" "$release_details_uri" 2>/dev/null) || true
                 
                 if [ -n "$release_details" ]; then
                     # Check if any environments are in progress
