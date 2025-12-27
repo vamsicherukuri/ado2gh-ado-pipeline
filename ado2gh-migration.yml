@@ -6,19 +6,14 @@ parameters:
   type: boolean
   default: true
 
-- name: runMannequinReclamation
-  displayName: 'Run Mannequin Reclamation (Stage 7)'
-  type: boolean
-  default: false
-
 - name: runDisableADORepos
-  displayName: 'Disable ADO Repositories (Stage 8)'
+  displayName: 'Disable ADO Repositories (Stage 7)'
   type: boolean
   default: false
 
 variables:
-  # Variable group for migration-related PAT tokens (Stages 1-5, 7, 8)
-  # Contains: GH_PAT, ADO_PAT (for migration, readiness checks, validation, rewiring, mannequin reclamation, disable repos)
+  # Variable group for migration-related PAT tokens (Stages 1-7)
+  # Contains: GH_PAT, ADO_PAT (for migration, readiness checks, validation, rewiring, boards integration, disable repos)
   - group: core-entauto-github-migration-secrets
   
   - name: maxConcurrent
@@ -240,41 +235,6 @@ stages:
               publishLocation: 'Container'
             continueOnError: true
 
-      - job: ReviewMigrationFailures
-        displayName: '⚠️ Review Migration Failures'
-        dependsOn: RunMigration
-        condition: eq(dependencies.RunMigration.outputs['MigrationTask.migrationHadFailures'], 'true')
-        pool: server
-        timeoutInMinutes: 1440
-        steps:
-          - task: ManualValidation@0
-            displayName: 'Migration Had Failures - Review and Approve'
-            inputs:
-              notifyUsers: '$(Build.RequestedForEmail)'
-              instructions: |
-                ## ⚠️ MIGRATION FAILURES DETECTED
-                
-                Some repositories failed to migrate to GitHub.
-                
-                ### 📊 What to Review
-                1. Download and review the **migration-logs** artifact
-                2. Check the migration results CSV for failed repositories
-                3. Review error messages and determine root cause
-                4. Decide whether to continue with validation for successful repos
-                
-                ### 📋 Failure Categories
-                - Migration errors (network, permissions, etc.)
-                - Repository not found
-                - Service connection issues
-                
-                ### ⏭️ Next Stage: Post-Migration Validation
-                Validation will run on successfully migrated repositories only.
-                
-                ### Options
-                ✅ Click **Resume** to continue to validation
-                ❌ Click **Reject** to stop the pipeline
-              onTimeout: 'reject'
-
   - stage: PostMigrationValidation
     displayName: 'Stage 4: Migration Validation'
     dependsOn: Migration
@@ -368,39 +328,6 @@ stages:
                 echo ""
                 echo "Review artifacts for detailed migration results."
                 echo "=========================================="
-      
-      - job: ReviewValidationFailures
-        displayName: '⚠️ Review Validation Failures Before Proceeding'
-        dependsOn: ValidationCheck
-        condition: eq(dependencies.ValidationCheck.outputs['ValidationTask.validationHadFailures'], 'true')
-        pool: server
-        timeoutInMinutes: 1440
-        steps:
-          - task: ManualValidation@0
-            displayName: 'Validation Had Failures - Review and Approve'
-            continueOnError: true
-            inputs:
-              notifyUsers: '$(Build.RequestedForEmail)'
-              instructions: |
-                ## ⚠️ VALIDATION FAILURES DETECTED
-                
-                Some repositories failed post-migration validation checks.
-                
-                ### 📊 What to Review
-                1. Download and review the **validation-logs** artifact
-                2. Check which repositories failed validation
-                3. Review branch counts, commit counts, and SHA mismatches
-                4. Determine if failures are blockers or can be addressed later
-                
-                ### ⏭️ Next Stage: Pipeline Rewiring
-                If you proceed:
-                - Successfully migrated repositories will have their pipelines rewired
-                - Failed repositories will be skipped in subsequent stages
-                
-                ### Options
-                ✅ Click **Resume** to continue with successful repositories
-                ❌ Click **Reject** to stop the pipeline and fix issues first
-              onTimeout: 'reject'
 
   - stage: PipelineRewiring
     displayName: 'Stage 5: Pipeline Rewiring'
@@ -511,45 +438,8 @@ stages:
                 echo ""
                 echo "Check the rewiring-logs artifact for detailed results"
                 echo "Log files: pipeline-rewiring-*.txt"
-                echo "=========================================="      
-      - job: ReviewRewiringFailures
-        displayName: '⚠️ Review Rewiring Failures Before Proceeding'
-        dependsOn: RewirePipelines
-        condition: eq(dependencies.RewirePipelines.outputs['RewiringTask.rewiringHadFailures'], 'true')
-        pool: server
-        timeoutInMinutes: 1440
-        steps:
-          - task: ManualValidation@0
-            displayName: 'Rewiring Had Failures - Review and Approve'
-            continueOnError: true
-            inputs:
-              notifyUsers: '$(Build.RequestedForEmail)'
-              instructions: |
-                ## ⚠️ PIPELINE REWIRING FAILURES DETECTED
-                
-                Some pipelines failed to be rewired to GitHub repositories.
-                
-                ### 📊 What to Review
-                1. Download and review the **rewiring-logs** artifact
-                2. Check which pipelines failed to rewire
-                3. Review error messages and determine root cause
-                4. Review if any pipelines were already on GitHub (no rewiring needed)
-                5. Assess impact on CI/CD workflows
-                
-                ### 📋 Failure Details
-                Check the logs for:
-                - ❌ Failed pipelines with error messages
-                - ⚠️ Already on GitHub (no action needed)
-                
-                ### ⏭️ Next Stage: Azure Boards Integration
-                If you proceed:
-                - Successfully rewired pipelines will continue to boards integration
-                - Failed pipelines may need manual intervention
-                
-                ### Options
-                ✅ Click **Resume** to continue to Azure Boards Integration
-                ❌ Click **Reject** to stop the pipeline and fix rewiring issues
-              onTimeout: 'reject'
+                echo "=========================================="
+
   - stage: AzureBoardsIntegration
     displayName: 'Stage 6: Boards Integration'
     dependsOn: PipelineRewiring
@@ -672,281 +562,19 @@ stages:
                 echo "Check the boards-integration-logs artifact for detailed results"
                 echo "Log file: azure-boards-integration-*.log"
                 echo "=========================================="
-      
-      - job: ReviewBoardsIntegrationFailures
-        displayName: '⚠️ Review Boards Integration Failures'
-        dependsOn: IntegrateBoards
-        condition: failed()
-        pool: server
-        timeoutInMinutes: 1440
-        steps:
-          - task: ManualValidation@0
-            displayName: 'Boards Integration Had Failures - Review and Approve'
-            continueOnError: true
-            inputs:
-              notifyUsers: '$(Build.RequestedForEmail)'
-              instructions: |
-                ## ⚠️ AZURE BOARDS INTEGRATION FAILURES DETECTED
-                
-                Some repositories failed Azure Boards integration.
-                
-                ### 📊 What to Review
-                1. Download and review the **boards-integration-logs** artifact
-                2. Check which repositories failed boards integration
-                3. Review error messages and connection issues
-                4. Verify ADO_PAT permissions for Boards integration
-                
-                ### ⏭️ Optional Next Stages
-                - Stage 7: Mannequin Reclamation (Optional)
-                - Stage 8: Disable ADO Repos (Optional)
-                
-                ### Options
-                ✅ Click **Resume** to continue to optional stages
-                ❌ Click **Reject** to stop the pipeline
-              onTimeout: 'reject'
 
-  - stage: MannequinReclamation
-    displayName: 'Stage 7: Mannequin Reclamation (Optional)'
+  - stage: DisableADORepositories
+    displayName: 'Stage 7: Disable ADO Repos (Optional)'
     dependsOn: AzureBoardsIntegration
     condition: |
       and(
-        eq('${{ parameters.runMannequinReclamation }}', true),
-        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped', 'Canceled')
-      )
-    jobs:
-      - job: WaitForApprovalToStartMannequins
-        displayName: '⏸️ Approve to START Mannequin Reclamation'
-        pool: server
-        timeoutInMinutes: 1440
-        steps:
-          - task: ManualValidation@0
-            displayName: 'Approve Mannequin Reclamation Process'
-            inputs:
-              notifyUsers: '$(Build.RequestedForEmail)'
-              instructions: |
-                ## 📋 OPTIONAL: MANNEQUIN RECLAMATION
-                
-                This stage will generate mannequin CSV, pause for your edits, then reclaim mannequins.
-                
-                **Process:**
-                1. Generate mannequins.csv
-                2. You download, edit target column, commit back
-                3. Reclaim mannequins using updated CSV
-                
-                ---
-                
-                ✅ Click **Resume** to START mannequin reclamation
-                ❌ Click **Reject** to SKIP and proceed to Stage 8
-              onTimeout: 'reject'
-      
-      - job: GenerateMannequins
-        displayName: 'Generate Mannequin CSV'
-        dependsOn: WaitForApprovalToStartMannequins
-        condition: succeeded()
-        steps:
-          - checkout: self
-          - task: Bash@3
-            displayName: 'Install GitHub CLI & Extension'
-            inputs:
-              targetType: 'inline'
-              script: |
-                set -e
-                type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
-                curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-                sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-                echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-                sudo apt update
-                sudo apt install gh -y
-                gh extension install github/gh-ado2gh
-            env:
-              GH_TOKEN: $(GH_PAT)
-
-          - task: Bash@3
-            displayName: 'Generate Mannequins CSV'
-            inputs:
-              targetType: 'inline'
-              script: |
-                chmod +x bash/7_mannequin_manager.sh
-                bash/7_mannequin_manager.sh generate
-            env:
-              GH_PAT: $(GH_PAT)
-            continueOnError: true
-
-          - task: PublishBuildArtifacts@1
-            condition: always()
-            inputs:
-              PathtoPublish: '$(System.DefaultWorkingDirectory)'
-              ArtifactName: 'mannequin-logs'
-
-      - job: WaitForCSVUpdate
-        displayName: '⏸️ MANUAL: Edit & Commit mannequins.csv'
-        dependsOn: GenerateMannequins
-        condition: succeeded()
-        pool: server
-        timeoutInMinutes: 10080
-        steps:
-          - task: ManualValidation@0
-            displayName: 'Confirm CSV Updated and Committed'
-            continueOnError: true
-            inputs:
-              notifyUsers: '$(Build.RequestedForEmail)'
-              instructions: |
-                ## ✏️ EDIT MANNEQUINS.CSV
-                
-                1. Download mannequins.csv from artifacts
-                2. Edit 'target' column with GitHub usernames
-                3. Commit to bash/mannequins.csv
-                   ```
-                   git add bash/mannequins.csv
-                   git commit -m "Update mannequin mappings"
-                   git push
-                   ```
-                4. Click Resume to reclaim mannequins
-                
-                ---
-                
-                ✅ **Resume** after committing updated CSV
-                ❌ **Reject** to skip reclamation
-              onTimeout: 'reject'
-
-      - job: ReclaimMannequins
-        displayName: 'Reclaim Mannequins'
-        dependsOn: WaitForCSVUpdate
-        condition: succeeded()
-        steps:
-          - checkout: self
-          - task: Bash@3
-            displayName: 'Install GitHub CLI & Extension'
-            inputs:
-              targetType: 'inline'
-              script: |
-                set -e
-                type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
-                curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-                sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-                echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-                sudo apt update
-                sudo apt install gh -y
-                gh extension install github/gh-ado2gh
-            env:
-              GH_TOKEN: $(GH_PAT)
-
-          - task: Bash@3
-            displayName: 'Reclaim Mannequins'
-            inputs:
-              targetType: 'inline'
-              script: |
-                chmod +x bash/7_mannequin_manager.sh
-                bash/7_mannequin_manager.sh reclaim
-            env:
-              GH_PAT: $(GH_PAT)
-            continueOnError: true
-
-          - task: PublishBuildArtifacts@1
-            condition: always()
-            inputs:
-              PathtoPublish: '$(System.DefaultWorkingDirectory)'
-              ArtifactName: 'mannequin-reclaim-logs'
-      
-      - job: ReviewMannequinFailures
-        displayName: '⚠️ Review Mannequin Reclamation Failures'
-        dependsOn: ReclaimMannequins
-        condition: failed()
-        pool: server
-        timeoutInMinutes: 1440
-        steps:
-          - task: ManualValidation@0
-            displayName: 'Mannequin Reclamation Had Failures - Review and Approve'
-            continueOnError: true
-            inputs:
-              notifyUsers: '$(Build.RequestedForEmail)'
-              instructions: |
-                ## ⚠️ MANNEQUIN RECLAMATION FAILURES DETECTED
-                
-                Some mannequins failed to be reclaimed.
-                
-                ### 📊 What to Review
-                1. Download and review the **mannequin-reclaim-logs** artifact
-                2. Check error messages from gh ado2gh reclaim-mannequin command
-                3. Verify mannequins.csv format and target mappings
-                4. Ensure target GitHub users have accepted organization invitations
-                
-                ### ⏭️ Optional Next Stage
-                - Stage 8: Disable ADO Repos (Optional)
-                
-                ### Options
-                ✅ Click **Resume** to continue to Stage 8
-                ❌ Click **Reject** to stop the pipeline
-              onTimeout: 'reject'
-
-  - stage: DisableADORepositories
-    displayName: 'Stage 8: Disable ADO Repos (Optional)'
-    dependsOn: 
-      - AzureBoardsIntegration
-      - MannequinReclamation
-    condition: |
-      and(
         eq('${{ parameters.runDisableADORepos }}', true),
-        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped', 'Canceled'),
-        in(dependencies.MannequinReclamation.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped', 'Canceled')
+        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Failed', 'Skipped', 'Canceled')
       )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
-      - job: WaitForApprovalToDisableRepos
-        displayName: '⏸️ Approve to DISABLE ADO REPOSITORIES'
-        pool: server
-        timeoutInMinutes: 1440
-        steps:
-          - task: ManualValidation@0
-            displayName: 'Review & Approve Disabling ADO Repos'
-            continueOnError: true
-            inputs:
-              notifyUsers: '$(Build.RequestedForEmail)'
-              instructions: |
-                ## ⚠️ CRITICAL: DISABLE AZURE DEVOPS REPOSITORIES
-                
-                **WARNING**: This stage will PERMANENTLY DISABLE repositories in Azure DevOps!
-                
-                ### 📊 What to Review BEFORE Approving
-                1. **VERIFY** all repositories migrated successfully to GitHub
-                2. **CONFIRM** all validation checks passed (Stage 4)
-                3. **ENSURE** all pipelines rewired successfully (Stage 5)
-                4. **CHECK** Azure Boards integration completed (Stage 6)
-                5. **REVIEW** mannequin reclamation (if executed in Stages 7A-7B)
-                6. **DOWNLOAD AND REVIEW** all artifacts:
-                   - migration-logs
-                   - validation-logs
-                   - rewiring-logs
-                   - boards-integration-logs
-                   - mannequin-generation-logs (if applicable)
-                   - mannequin-reclaim-logs (if applicable)
-                
-                ### ⏭️ Next Action: Disable ADO Repositories
-                This will:
-                - Disable all Azure DevOps repositories listed in repos.csv
-                - Make ADO repositories read-only
-                - Prevent further commits to ADO repositories
-                
-                ### 🔒 Impact
-                - **ADO repositories will be DISABLED**
-                - Users will NOT be able to push to ADO repos
-                - This action helps enforce GitHub as the source of truth
-                
-                ### 🛡️ Safety Note
-                - You can skip this stage by clicking **Reject**
-                - Only approve if you're certain migration is complete
-                - This is an OPTIONAL cleanup step
-                
-                ---
-                
-                ✅ Click **Resume** to DISABLE ADO REPOSITORIES
-                ❌ Click **Reject** to SKIP this stage and complete the pipeline
-              onTimeout: 'reject'
-      
       - job: DisableRepositories
         displayName: 'Disable ADO Repositories'
-        dependsOn: WaitForApprovalToDisableRepos
-        condition: succeeded()
         steps:
           - checkout: self
 
@@ -1038,21 +666,19 @@ stages:
       - PostMigrationValidation
       - PipelineRewiring
       - AzureBoardsIntegration
-      - MannequinReclamation
       - DisableADORepositories
     condition: always()
     jobs:
       - job: CompletionSummary
         displayName: 'Pipeline Completion Summary'
         variables:
-          stage1Result: $[ stageDependencies.PrerequisiteValidation.PrerequisiteCheck.result ]
-          stage2Result: $[ stageDependencies.MigrationReadinessCheck.ReadinessApproval.result ]
+          stage1Result: $[ stageDependencies.PrerequisiteValidation.ValidatePrerequisites.result ]
+          stage2Result: $[ stageDependencies.MigrationReadinessCheck.WaitForApprovalToMigrate.result ]
           stage3Result: $[ stageDependencies.Migration.RunMigration.result ]
           stage4Result: $[ stageDependencies.PostMigrationValidation.ValidationCheck.result ]
           stage5Result: $[ stageDependencies.PipelineRewiring.RewirePipelines.result ]
           stage6Result: $[ stageDependencies.AzureBoardsIntegration.IntegrateBoards.result ]
-          stage7Result: $[ stageDependencies.MannequinReclamation.GenerateMannequins.result ]
-          stage8Result: $[ stageDependencies.DisableADORepositories.DisableRepos.result ]
+          stage7Result: $[ stageDependencies.DisableADORepositories.DisableRepositories.result ]
         steps:
           - task: PowerShell@2
             displayName: 'Display Pipeline Summary'
@@ -1083,12 +709,8 @@ stages:
                 if ("$(stage6Result)" -eq "SucceededWithIssues") {
                     Write-Host "           ⚠️ Some repositories failed boards integration (check boards-integration-logs)"
                 }
-                Write-Host "  Stage 7: Mannequin Reclamation - $(stage7Result)"
+                Write-Host "  Stage 7: Disable ADO Repos - $(stage7Result)"
                 if ("$(stage7Result)" -eq "Canceled" -or "$(stage7Result)" -eq "Skipped") {
-                    Write-Host "           ℹ️ Optional stage was skipped"
-                }
-                Write-Host "  Stage 8: Disable ADO Repos - $(stage8Result)"
-                if ("$(stage8Result)" -eq "Canceled" -or "$(stage8Result)" -eq "Skipped") {
                     Write-Host "           ℹ️ Optional stage was skipped"
                 }
                 Write-Host ""
@@ -1106,7 +728,6 @@ stages:
                 Write-Host "  - validation-logs: Validation check results"
                 Write-Host "  - rewiring-logs: Pipeline rewiring results"
                 Write-Host "  - boards-integration-logs: Azure Boards integration results"
-                Write-Host "  - mannequin-logs: Mannequin generation/reclamation (if run)"
                 Write-Host "  - disable-repos-logs: ADO repository disable results (if run)"
                 Write-Host ""
                 Write-Host "=========================================="

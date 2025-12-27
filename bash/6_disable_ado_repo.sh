@@ -70,13 +70,14 @@ log_section() {
 validate_prerequisites() {
     log_section "VALIDATING PREREQUISITES"
     
-    # Check if repos.csv exists
-    if [ ! -f "bash/repos.csv" ]; then
-        log_error "repos.csv not found at bash/repos.csv"
-        echo "##[error]repos.csv not found at bash/repos.csv"
+    # Check if repos_with_status.csv exists
+    if [ ! -f "repos_with_status.csv" ]; then
+        log_error "repos_with_status.csv not found"
+        log_error "Make sure Stage 3 (Migration) completed successfully and published repos_with_status.csv"
+        echo "##[error]repos_with_status.csv not found - Stage 3 migration may have failed"
         exit 1
     fi
-    log_success "repos.csv found"
+    log_success "repos_with_status.csv found"
     
     # Check for required environment variables
     if [ -z "${ADO_PAT:-}" ]; then
@@ -101,11 +102,11 @@ validate_prerequisites() {
     log_success "gh CLI is installed: $(gh --version | head -n 1)"
     
     # Validate CSV headers
-    if ! head -n 1 bash/repos.csv | grep -q "org.*teamproject.*repo"; then
-        log_error "repos.csv missing required columns: org, teamproject, repo"
+    if ! head -n 1 repos_with_status.csv | grep -q "org.*teamproject.*repo.*MigrationStatus"; then
+        log_error "repos_with_status.csv missing required columns: org, teamproject, repo, MigrationStatus"
         exit 1
     fi
-    log_success "All required columns present in repos.csv"
+    log_success "All required columns present in repos_with_status.csv"
 }
 
 ################################################################################
@@ -143,11 +144,11 @@ disable_ado_repository() {
 ################################################################################
 
 process_repositories() {
-    log_section "PROCESSING REPOSITORIES FROM repos.csv"
+    log_section "PROCESSING REPOSITORIES FROM repos_with_status.csv"
     
     local line_number=0
     
-    while IFS=',' read -r ado_org ado_team_project ado_repo github_org github_repo gh_repo_visibility; do
+    while IFS=',' read -r ado_org ado_team_project ado_repo github_org github_repo gh_repo_visibility migration_status; do
         : $((line_number++))
         
         # Skip header row
@@ -157,6 +158,12 @@ process_repositories() {
         
         # Skip empty lines or lines with missing required fields
         if [ -z "$ado_org" ] || [ -z "$ado_team_project" ] || [ -z "$ado_repo" ]; then
+            continue
+        fi
+        
+        # Skip repositories that failed migration
+        if [ "$migration_status" != "Success" ]; then
+            log_warning "⏭️  Skipping $ado_repo (Migration Status: $migration_status)"
             continue
         fi
         
@@ -176,7 +183,7 @@ process_repositories() {
         
         echo "" | tee -a "$LOG_FILE"
         
-    done < bash/repos.csv
+    done < repos_with_status.csv
 }
 
 ################################################################################

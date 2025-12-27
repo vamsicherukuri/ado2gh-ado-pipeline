@@ -316,11 +316,6 @@ if [ $VALIDATION_FAILURES -gt 0 ]; then
     if [ $VALIDATION_SUCCESSES -gt 0 ]; then
         echo "##[warning]⚠️ Stage completed with PARTIAL SUCCESS: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
     fi
-    
-    # Set output variable to indicate failures (for conditional approval)
-    echo "##vso[task.setvariable variable=validationHadFailures;isOutput=true]true"
-else
-    echo "##vso[task.setvariable variable=validationHadFailures;isOutput=true]false"
 fi
 
 echo "##vso[task.logissue type=warning]Post-migration validation completed: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
@@ -338,16 +333,6 @@ if [ $VALIDATION_FAILURES -eq 0 ]; then
 else
     # Partial success or some failed - downstream stage should continue
     echo "##[warning]⚠️ Validation completed with issues: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
-    echo "##vso[task.logissue type=warning]Partial success: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
-    
-    # Set output variable to track failures for conditional approval
-    echo "##vso[task.setvariable variable=validationHadFailures;isOutput=true]true"
-    
-    # Use task.complete to set result as SucceededWithIssues
-    echo "##vso[task.complete result=SucceededWithIssues;]Validation completed with issues"
-    exit 0
-fi
-    echo "##[warning]⚠️ Validation completed with PARTIAL SUCCESS: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
     echo "##vso[task.logissue type=warning]Partial success: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
     
     # Use task.complete to set result as SucceededWithIssues
