@@ -308,14 +308,15 @@ if [ $VALIDATION_FAILURES -gt 0 ]; then
     if [ $VALIDATION_SUCCESSES -gt 0 ]; then
         echo "##[warning]⚠️ Stage completed with PARTIAL SUCCESS: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
     fi
+    
+    # Set output variable to indicate failures (for conditional approval)
+    echo "##vso[task.setvariable variable=validationHadFailures;isOutput=true]true"
+else
+    echo "##vso[task.setvariable variable=validationHadFailures;isOutput=true]false"
 fi
 
 echo "##vso[task.logissue type=warning]Post-migration validation completed: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
 
-# Exit with error code if validation failures occurred
-if [ $VALIDATION_FAILURES -gt 0 ]; then
-    echo "##[error]Post-migration validation failed for $VALIDATION_FAILURES repositories"
-    exit 1
-fi
-
+# Always exit 0 to show as SucceededWithIssues rather than Failed
+# Conditional approval gate will check the validationHadFailures output variable
 exit 0

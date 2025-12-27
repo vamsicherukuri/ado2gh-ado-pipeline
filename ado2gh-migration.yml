@@ -307,7 +307,7 @@ stages:
       - job: ReviewValidationFailures
         displayName: '⚠️ Review Validation Failures Before Proceeding'
         dependsOn: ValidationCheck
-        condition: failed()
+        condition: eq(dependencies.ValidationCheck.outputs['ValidationTask.validationHadFailures'], 'true')
         pool: server
         timeoutInMinutes: 1440
         steps:
