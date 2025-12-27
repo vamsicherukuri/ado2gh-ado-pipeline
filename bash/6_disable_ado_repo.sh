@@ -83,10 +83,11 @@ validate_prerequisites() {
     local success_count
     success_count=$(tail -n +2 "repos_with_status.csv" | grep -c ",Success$" || true)
     if [ "$success_count" -eq 0 ]; then
-        log_error "No successfully migrated repositories found"
-        log_error "All repositories failed migration. Cannot proceed with disabling."
-        echo "##[error]No successfully migrated repositories - all migrations failed"
-        exit 1
+        log_warning "No successfully migrated repositories found"
+        log_warning "All repositories failed migration. Skipping disabling."
+        echo "##[warning]No successfully migrated repositories - skipping disable stage"
+        echo "Skipping ADO repository disabling as all repositories failed migration"
+        exit 0
     fi
     log_success "Found $success_count successfully migrated repositories"
     

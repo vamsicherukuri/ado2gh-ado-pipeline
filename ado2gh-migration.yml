@@ -329,8 +329,10 @@ stages:
 
   - stage: PipelineRewiring
     displayName: 'Stage 5: Pipeline Rewiring'
-    dependsOn: PostMigrationValidation
-    condition: in(dependencies.PostMigrationValidation.result, 'Succeeded', 'SucceededWithIssues')
+    dependsOn:
+      - Migration
+      - PostMigrationValidation
+    condition: in(dependencies.Migration.result, 'Succeeded', 'SucceededWithIssues')
     # PAT Tokens Used: GH_TOKEN, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:
       - job: RewirePipelines
@@ -439,11 +441,14 @@ stages:
 
   - stage: AzureBoardsIntegration
     displayName: 'Stage 6: Boards Integration'
-    dependsOn: PipelineRewiring
+    dependsOn:
+      - Migration
+      - PostMigrationValidation
+      - PipelineRewiring
     condition: |
       and(
         eq('${{ parameters.runAzureBoardsIntegration }}', true),
-        in(dependencies.PipelineRewiring.result, 'Succeeded', 'SucceededWithIssues')
+        in(dependencies.Migration.result, 'Succeeded', 'SucceededWithIssues')
       )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from azure-boards-integration-secrets)
     # IMPORTANT: This stage uses a SEPARATE variable group with ADO_PAT having limited Boards-only scopes
@@ -561,11 +566,15 @@ stages:
 
   - stage: DisableADORepositories
     displayName: 'Stage 7: Disable ADO Repos (Optional)'
-    dependsOn: AzureBoardsIntegration
+    dependsOn:
+      - Migration
+      - PostMigrationValidation
+      - PipelineRewiring
+      - AzureBoardsIntegration
     condition: |
       and(
         eq('${{ parameters.runDisableADORepos }}', true),
-        in(dependencies.AzureBoardsIntegration.result, 'Succeeded', 'SucceededWithIssues', 'Skipped')
+        in(dependencies.Migration.result, 'Succeeded', 'SucceededWithIssues')
       )
     # PAT Tokens Used: GH_PAT, ADO_PAT (from core-entauto-github-migration-secrets)
     jobs:

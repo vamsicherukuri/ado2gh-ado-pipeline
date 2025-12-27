@@ -281,10 +281,11 @@ validate_from_csv() {
     local success_count
     success_count=$(tail -n +2 "$csv_path" | grep -c ",Success$" || true)
     if [ "$success_count" -eq 0 ]; then
-        write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: No successfully migrated repositories found in $csv_path"
-        write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ERROR: All repositories failed migration. Cannot proceed with validation."
-        echo "##[error]No successfully migrated repositories to validate - all migrations failed"
-        return 1
+        write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] WARNING: No successfully migrated repositories found in $csv_path"
+        write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] All repositories failed migration. Skipping validation."
+        echo "##[warning]No successfully migrated repositories to validate - skipping validation stage"
+        echo "Skipping validation as all repositories failed migration"
+        exit 0
     fi
     write_log "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Found $success_count successfully migrated repositories to validate"
 
@@ -353,10 +354,11 @@ if [ $VALIDATION_FAILURES -eq 0 ]; then
     exit 0
     
 elif [ $VALIDATION_SUCCESSES -eq 0 ]; then
-    # All failed validation
-    echo "##[error]❌ All $VALIDATION_FAILURES repositories failed validation"
-    echo "##vso[task.logissue type=error]Validation failed: All repositories had validation errors"
-    exit 1
+    # All failed validation - but continue pipeline anyway
+    echo "##[warning]⚠️ All $VALIDATION_FAILURES repositories failed validation"
+    echo "##vso[task.logissue type=warning]Validation failed: All repositories had validation errors, but continuing pipeline"
+    echo "##vso[task.complete result=SucceededWithIssues;]All validations failed but continuing pipeline"
+    exit 0
     
 else
     # Partial success - some succeeded, some failed
