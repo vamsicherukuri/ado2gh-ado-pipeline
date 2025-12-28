@@ -120,7 +120,6 @@ flowchart TB
 ### Stage 2: Pre-migration check
 Executes `1_pr_pipeline_check.sh` to:
 
-- Scans source repositories for active pull requests
 - Detects active builds, releases pipelines, and pull requests
 - Identifies potential blockers before migration begins
 - Generates a readiness report
@@ -129,36 +128,32 @@ Executes `1_pr_pipeline_check.sh` to:
 ### Stage 3: Repository Migration
 Executes `2_migration.sh` to perform the actual migration:
 
-- Installs GitHub CLI and `gh-ado2gh` extension
-- Executes parallel migrations (configurable: 1-5 concurrent migrations in the script)
+- Executes parallel migrations (configurable: 1-5 concurrent migrations via pipeline parameter `maxConcurrent`)
 - Migrates repository content, branches, and commit history
 - Generates migration status logs for each repository
-- Creates a summary CSV with migration results
+- Creates `repos_with_status.csv` with migration results (published as artifact for downstream stages)
 
 ### Stage 4: Repository Migration Validation
 Executes `3_post_migration_validation.sh` to:
 
--Branch Comparison - Compares branch counts between ADO and GitHub, identifies any missing branches on either side.
--Commit Validation - For each branch, verifies the latest commit SHA matches between ADO and GitHub to ensure complete migration.
--Commit Count Verification - Compares total commit counts per branch between source (ADO) and target (GitHub) to detect any missing commits.
-- Generates validation logs with detailed results
-- **⏸️ User approval:** Review validation before proceeding to next stage 5: Pipeline Rewiring
+- Branch Comparison - Compares branch counts between ADO and GitHub, identifies any missing branches on either side.
+- Commit Count Verification - For each branch, compares total commit counts between ADO and GitHub to detect any missing commits.
+- Commit SHA Validation - For each branch, verifies the latest commit SHA matches between ADO and GitHub to ensure complete migration.
+- Generates validation logs - Creates detailed logs with timestamps, comparison results, and mismatch indicators (✅/❌)
 
 ### Stage 5: Pipeline Rewiring
 Executes `4_rewire_pipeline.sh` to:
 
-- Validate github and ADO tokens.
-- Reads pipeline configurations from `bash/pipelines.csv`
+- Downloads `repos_with_status.csv` artifact from Stage 3
+- Reads pipeline configurations from pipelines.csv
+- Filters pipelines - Only rewires pipelines whose repositories migrated successfully
 - Rewires Azure DevOps pipelines to use GitHub repositories
-- Updates service connections and repository sources
-- Validates pipeline configurations
 - Generates rewiring logs
-- **⏸️ User approval:** Review validation before proceeding to next stage 6: boards Integration
 
 ### Stage 6: Azure Boards Integration
 Executes `5_boards_integration.sh` to:
 
-- Validates GitHub and ADO PAT tokens (for this stage, GitHub PAT tokens should be created with the following scopes: repo; admin:repo_hook; read:user; user:email).
+- - Validates GitHub and ADO PAT tokens (GitHub PAT requires: repo, admin:repo_hook, read:user, user:email scopes).
 - Integrates Azure Boards with migrated GitHub repositories.
 - Enables AB# work item linking in GitHub commits/PRs.
 
@@ -169,29 +164,30 @@ Executes `5_boards_integration.sh` to:
 Before running this pipeline, ensure the following requirements are met:
 
 
- #### 1. 🗂️ Define Migration Scope Using CSV Configuration Files: 
- Provide the source and target details in the `repo.csv` and `pipeline.csv` files for the repositories batched for migration. You can use the existing CSV templates in the repository and update them with your repository and pipeline information.
+#### 1. 🗂️ Define Migration Scope Using CSV Configuration Files: 
+Provide the source and target details in the `repos.csv` and `pipelines.csv` files for the repositories batched for migration. You can use the existing CSV templates in the repository and update them with your repository and pipeline information.
 
 The `bash/repos.csv` file must exist with the following structure:
 
-   **Required columns:**
-
-+ `org` - Azure DevOps organization name
-+ `teamproject` - Azure DevOps project name
-+ `repo` - Azure DevOps repository name
-+ `github_org` - Target GitHub organization
-+ `github_repo` - Target GitHub repository name
-+ `gh_repo_visibility` - Repository visibility: `private`, `public`, or `internal`
+**Required columns:**
+- `org` - Azure DevOps organization name
+- `teamproject` - Azure DevOps project name
+- `repo` - Azure DevOps repository name
+- `github_org` - Target GitHub organization
+- `github_repo` - Target GitHub repository name
+- `gh_repo_visibility` - Repository visibility: `private`, `public`, or `internal`
 
 The `bash/pipelines.csv` file must exist with the following structure for pipeline rewiring:
 
 **Required columns:**
-+ `org` - Azure DevOps organization name
-+ `teamproject` - Azure DevOps project name
-+ `pipeline` - Pipeline name/path to rewire
-+ `github_org` - Target GitHub organization
-+ `github_repo` - Target GitHub repository name
-+ `serviceConnection` - Azure DevOps GitHub service connection ID
+- `org` - Azure DevOps organization name
+- `teamproject` - Azure DevOps project name
+- `repo` - Azure DevOps repository name (used to verify migration success)
+- `pipeline` - Pipeline name/path to rewire (e.g., `\my-pipeline-ci`)
+- `url` - Pipeline URL (for reference/documentation)
+- `serviceConnection` - Azure DevOps GitHub service connection ID
+- `github_org` - Target GitHub organization
+- `github_repo` - Target GitHub repository name
 
  #### 2. 🔐 Authentication & Access Token Requirements
  Create one Azure DevOps PAT token and two separate GitHub Enterprise PAT tokens with the required scopes - one for repository migration and another specifically for Azure Boards integration.
@@ -209,9 +205,31 @@ The `bash/pipelines.csv` file must exist with the following structure for pipeli
 + ✅ `read:user` (Read user profile data)
 + ✅ `user:email` (Access user email addresses)
 
+**Azure DevOps PAT Scopes:**
+
+You can use **Admin-scoped** PAT for simplicity, or restrict to the following minimum required scopes:
+
+- ✅ `Analytics` (Read)
+- ✅ `Build` (Read)
+- ✅ `Code` (Read)
+- ✅ `Code` (Full)
+- ✅ `Code` (Status)
+- ✅ `GitHub Connections` (Read & manage)
+- ✅ `Graph` (Read)
+- ✅ `Identity` (Read)
+- ✅ `Pipeline Resources` (Use)
+- ✅ `User Profile` (Read)
+- ✅ `Project and Team` (Read)
+- ✅ `Release` (Read)
+- ✅ `Security` (Manage)
+- ✅ `Service Connections` (Read & query)
+- ✅ `Work Items` (Read)
+
+> **Note**: Admin-scoped PAT is recommended for ease of setup, but using restricted scopes follows security best practices.
  
  #### 3. 🧩Azure DevOps Service Connections
- Configure the service connection in Azure DevOps and add the corresponding service connection ID to the pipeline.csv file.(Required for Stage 5)
+Configure the GitHub service connection in Azure DevOps and record the corresponding service connection ID in the `pipeline.csv` file (required for Stage 5).
+The service connection must have Contributor permissions on the target GitHub organization and repositories to enable successful pipeline rewiring.
 
 
  #### 4. 🔐 PAT Token Configuration via Azure DevOps Variable Groups
@@ -239,13 +257,13 @@ Used in Stage 6 (Azure Boards Integration) - **SEPARATE token with limited scope
 > **⚠️ IMPORTANT**: Both variable groups are required for the pipeline to run successfully. If either variable group does not exist, the pipeline will fail. Create them prior to the initial pipeline run. If variable groups are created with different names than those referenced above, the YAML must be updated accordingly.
 
 #### 5. Concurrency Settings
-Configure the `maxConcurrent` variable in `ado2gh-migration.yml` based on your requirements:
+Configure the `maxConcurrent` variable in `ado2gh-migration.yml` to control how many repositories migrate in parallel:
 
 ```yaml
 variables:
   - group: core-entauto-github-migration-secrets
   - name: maxConcurrent
-    value: 3  # Change this value (1-5)
+    value: 3  # Adjust based on your needs (valid range: 1-5)
 ```
 
 
@@ -254,9 +272,8 @@ variables:
 ## 🚀 Quick Start: Your First Migration
 
 1. **Prepare your repos.csv**
-   ```bash
    # Navigate to the repository directory
-   cd /path/to/ado2gh-ado-pipelines
+   `cd /path/to/ado2gh-ado-pipelines`
    # Windows: cd C:\Users\<username>\ado2gh-ado-pipelines
    
    # Edit repos.csv with your test repositories
@@ -488,6 +505,7 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
 
