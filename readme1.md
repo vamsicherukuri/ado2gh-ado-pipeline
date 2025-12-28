@@ -67,14 +67,10 @@ flowchart TB
     Gate1 -- Approved --> Stage3["<b>Stage 3: Repository Migration</b><br>Install GH CLI &amp; ado2gh<br>Migrate repos<br>Generate migration logs"]
     Gate1 -- Rejected --> End1["<b>Pipeline Cancelled</b>"]
     Stage3 --> Stage4["<b>Stage 4: Migration Validation</b><br>Compare ADO and GH repos<br>branch count<br>commit counts per branch<br>SHAs match, proving commit history is intact"]
-    Stage4 --> Gate2["<b>User Approval</b><br>Review validation results &amp; trigger next stage"]
-    Gate2 -- Approved --> Stage5["<b>Stage 5: Pipeline Rewiring</b><br>Validate GH &amp; ADO PAT tokens<br>Validate pipelines.csv<br>rewire pipeline to GH repo<br>Use GH service connection<br>Generate rewiring logs"]
-    Gate2 -- Rejected --> End2(["<b>Pipeline Cancelled</b>"])
-    Stage5 --> Gate3["<b>User Approval</b><br>Review Rewiring status &amp; trigger next stage"]
-    Gate3 -- Approved --> Stage6["<b>Stage 6: Boards Integration</b><br>Integrate boards<br>Enable <b>AB#</b> linking<br>Generate Logs"]
-    Gate3 -- Rejected --> End3(["<b>Pipeline Cancelled</b>"])
+    Stage4 --> Stage5["<b>Stage 5: Pipeline Rewiring</b><br>Validate GH &amp; ADO PAT tokens<br>Validate pipelines.csv<br>rewire pipeline to GH repo<br>Validates GitHub service connection<br>Generate rewiring logs"]
+    Stage5 --> Stage6["<b>Stage 6: Boards Integration</b><br>Integrate boards<br>Enable <b>AB#</b> linking<br>Generate Logs"]
     Stage6 --> Success(["<b>Migration Complete ✓</b>"])
-
+    
     Start@{ shape: tag-proc}
     Stage1@{ shape: procs}
     Stage2@{ shape: procs}
@@ -82,9 +78,7 @@ flowchart TB
     Stage3@{ shape: procs}
     End1@{ shape: terminal}
     Stage4@{ shape: procs}
-    Gate2@{ shape: doc}
     Stage5@{ shape: procs}
-    Gate3@{ shape: doc}
     Stage6@{ shape: procs}
     style Stage1 fill:#e1f5ff,stroke-width:1px,stroke-dasharray: 0
     style Stage2 fill:#e1f5ff
@@ -92,12 +86,8 @@ flowchart TB
     style Stage3 fill:#e1f5ff
     style End1 fill:#ffcccc
     style Stage4 fill:#e1f5ff
-    style Gate2 fill:#FFF9C4
     style Stage5 fill:#e1f5ff
-    style End2 fill:#ffcccc
-    style Gate3 fill:#FFF9C4
     style Stage6 fill:#e1f5ff
-    style End3 fill:#ffcccc
     style Success fill:#e1ffe1
 ```
 > **⚠️ IMPORTANT**: Manual approval gates are enforced after Stage 2, Stage 4, and Stage 5. The pipeline remains paused at the preceding stage until approval is provided. Each of these stages must be manually validated before proceeding to the next stage.
@@ -480,6 +470,7 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
 
