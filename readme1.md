@@ -37,13 +37,13 @@ This pipeline-based approach solves these challenges by:
 
 ## 📋 Table of Contents
 
-- [Pipeline Overview](#pipeline-overview)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start-your-first-migration)
+- [Pipeline Overview](#-pipeline-overview)
+- [Prerequisites](#️-prerequisites)
+- [Quick Start](#-quick-start-your-first-migration)
 - [Published Artifacts](#published-artifacts)
-- [FAQ](#frequently-asked-questions)
-- [Contributing](#contributing)
-- [License](#license)
+- [FAQ](#-frequently-asked-questions)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
@@ -506,6 +506,7 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
 
