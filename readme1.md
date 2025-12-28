@@ -51,7 +51,21 @@ This pipeline-based approach solves these challenges by:
 
 This pipeline is designed to run on Ubuntu Linux using Microsoft-hosted Azure Pipelines agents with the `ubuntu-latest` VM image. The pipeline executes 6 stages sequentially, where each stage runs on a completely fresh Ubuntu runner with no state carried over from previous stages.
 
-The three manual approval gates use `pool: server` (no agent required) with a 24-hour timeout, and each regular stage runs with the `condition: succeeded()` to ensure it only executes if the previous stage completed successfully. Since each stage gets a fresh runner, tools like GitHub CLI and the gh-ado2gh extension are reinstalled in every stage that needs them.
+This pipeline is designed to run on **Ubuntu Linux** using **Microsoft-hosted Azure Pipelines agents** with the `ubuntu-latest` VM image.
+
+The pipeline consists of **six sequential stages**. Each stage runs on a new **Ubuntu runner**, with **no state persisted** between stages. To enable continuity across stages, the pipeline relies on **artifacts** rather than in-memory or runner-level state.
+
+After **Stage 3 (Repository Migration)**, the job publishes a **log artifact** containing a file named `repo_with_status.csv`. This file captures the migration outcome for each repository, clearly indicating which repositories **succeeded** and which **failed**.
+
+Subsequent stages - **Post-Migration Validation, Pipeline Rewiring**, and **Azure Boards Integration**  consume this `repo_with_status.csv` artifact and execute **only against repositories that were successfully migrated**.
+
+**An additional important detail:** Pipeline rewiring continues to read pipeline definitions from pipeline.csv However, it cross-references pipeline.csv with repo_with_status.csv and filters out any repositories that were not successfully migrated, ensuring that rewiring runs only for valid, successfully migrated repositories.
+
+This approach allows the pipeline to support **partial success**, while ensuring that downstream stages operate strictly on repositories that meet the success criteria of the previous stage.
+
+**Manual Approval:** The pipeline has one manual approval gate at Stage 2 (Migration Readiness) that uses pool: server (no agent required) with a 3-day timeout, and auto-rejects if not approved.
+
+**Stage Dependencies:** Stages 1-3 require strict success (condition: succeeded()), while Stages 4-6 allow partial success and will run even if the previous stage completed with issues (condition: in(...result, 'Succeeded', 'SucceededWithIssues')).
 
 ```mermaid
 ---
@@ -470,6 +484,7 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
 
