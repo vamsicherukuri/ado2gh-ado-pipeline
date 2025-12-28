@@ -235,7 +235,7 @@ The service connection must have Contributor permissions on the target GitHub or
  #### 4. 🔐 PAT Token Configuration via Azure DevOps Variable Groups
 Configure two separate Variable Groups in Azure DevOps to store the PAT tokens as secrets—one Variable Group for the migration pipeline and another for Azure Boards integration - so the pipeline can securely read the appropriate tokens at each stage.
     
-**Migration Variable Group:** `core-entauto-github-migration-secrets`
+- **Migration Variable Group:** `core-entauto-github-migration-secrets`
 
 Stages 1–5 (Prerequisites, Pre-Migration Checks, Migration, Validation, and Rewiring) use one set of GitHub PATs, while Stage 6 (Boards Integration) requires separate GitHub PATs with different scopes.
 
@@ -245,7 +245,7 @@ Stages 1–5 (Prerequisites, Pre-Migration Checks, Migration, Validation, and Re
 | `ADO_PAT` | Azure DevOps PAT with `Full access` scope |
 
 
-**Boards Integration Variable Group:** `azure-boards-integration-secrets`
+- **Boards Integration Variable Group:** `azure-boards-integration-secrets`
 
 Used in Stage 6 (Azure Boards Integration) - **SEPARATE token with limited scopes**
 
@@ -506,6 +506,7 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
 
