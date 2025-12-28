@@ -272,7 +272,7 @@ variables:
 ## 🚀 Quick Start: Your First Migration
 
 1. **Prepare your repos.csv**
-```bash
+   ```bash
    # Navigate to the repository directory
    cd /path/to/ado2gh-ado-pipelines
    # Windows: cd C:\Users\<username>\ado2gh-ado-pipelines
@@ -506,6 +506,7 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
 
