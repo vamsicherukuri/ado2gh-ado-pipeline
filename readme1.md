@@ -49,6 +49,10 @@ This pipeline-based approach solves these challenges by:
 
 ## ️ Pipeline Overview
 
+> ℹ️ **Informational Only**  
+> This section is provided for **conceptual understanding** of the pipeline flow.
+> Actual execution behavior is governed by the YAML implementation.
+
 This pipeline is designed to run on Ubuntu Linux using Microsoft-hosted Azure Pipelines agents with the `ubuntu-latest` VM image. The pipeline executes 6 stages sequentially, where each stage runs on a completely fresh Ubuntu runner with no state carried over from previous stages.
 
 This pipeline is designed to run on **Ubuntu Linux** using **Microsoft-hosted Azure Pipelines agents** with the `ubuntu-latest` VM image.
@@ -65,7 +69,7 @@ This approach allows the pipeline to support **partial success**, while ensuring
 
 **Manual Approval:** The pipeline has one manual approval gate at Stage 2 (Migration Readiness) that uses pool: server (no agent required) with a 3-day timeout, and auto-rejects if not approved.
 
-**Stage Dependencies:** Stages 1-3 require strict success (condition: succeeded()), while Stages 4-6 allow partial success and will run even if the previous stage completed with issues (condition: in(...result, 'Succeeded', 'SucceededWithIssues')).
+**Stage Dependencies:** Stages 1-3 require strict success `(condition: succeeded())`, while Stages 4-6 allow partial success and will run even if the previous stage completed with issues `(condition: in(...result, 'Succeeded', 'SucceededWithIssues'))`.
 
 ```mermaid
 ---
@@ -484,6 +488,7 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
 
