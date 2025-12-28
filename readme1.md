@@ -272,36 +272,37 @@ variables:
 ## 🚀 Quick Start: Your First Migration
 
 1. **Prepare your repos.csv**
+```bash
    # Navigate to the repository directory
-   `cd /path/to/ado2gh-ado-pipelines`
+   cd /path/to/ado2gh-ado-pipelines
    # Windows: cd C:\Users\<username>\ado2gh-ado-pipelines
    
    # Edit repos.csv with your test repositories
    code bash/repos.csv
    ```
 
-2. **Add test repository entries** (start with 1-3 repos):
+3. **Add test repository entries** (start with 1-3 repos):
    ```csv
    org,teamproject,repo,github_org,github_repo,gh_repo_visibility
    mycompany,Platform,api-service,mycompany-gh,platform-api,private
    mycompany,Platform,web-frontend,mycompany-gh,platform-web,private
    ```
 
-3. **Commit and push your changes**:
+4. **Commit and push your changes**:
    ```bash
    git add bash/repos.csv
    git commit -m "Add test repositories for first migration"
    git push
    ```
 
-4. **Run the pipeline**: from Azure DevOps.
+5. **Run the pipeline**: from Azure DevOps.
 
-5. **Monitor Stage 1** (Prerequisite Validation):
+6. **Monitor Stage 1** (Prerequisite Validation):
    - Should complete in < 3 minute
    - Validates CSV format and displays repository count
    - Check for any errors
 
-6. **Monitor Stage 2** (Pre-migration Check):
+7. **Monitor Stage 2** (Pre-migration Check):
    - Reviews readiness report for active PRs and pipelines
    - Download `readiness-logs` artifact to review findings
    - ⏸️ **APPROVAL REQUIRED**: Review and approve/reject based on findings
@@ -309,22 +310,22 @@ variables:
      - ✅ **APPROVE**: If NO blocking issues found (active PRs or pipelines)
      - ❌ **REJECT**: If ANY blocking issues found; resolve issues and re-run from Stage 1
 
-7. **Monitor Stage 3** (Repository Migration):
+8. **Monitor Stage 3** (Repository Migration):
    - Actual migration happens here
    - Monitor logs for progress
    - Download `migration-logs` artifact when complete
 
-8. **Monitor Stage 4** (Migration Validation):
+9. **Monitor Stage 4** (Migration Validation):
    - Compares branches and commits between ADO and GitHub
    - Download `validation-logs` artifact
    - ⏸️ **APPROVAL REQUIRED**: Review and approve/reject based on findings
 
-9. **Monitor Stage 5** (Pipeline Rewiring):
+10. **Monitor Stage 5** (Pipeline Rewiring):
    - Rewires ADO pipelines to use GitHub repos
    - Download `rewiring-logs` artifact
    - ⏸️ **APPROVAL REQUIRED**: Confirm pipelines rewired successfully and approve/reject based on findings
 
-10. **Monitor Stage 6** (Boards Integration):
+11. **Monitor Stage 6** (Boards Integration):
     - Integrates Azure Boards with GitHub repos
     - Download `boards-integration-logs` artifact
     - ✅ **Migration Complete!**
