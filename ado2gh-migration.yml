@@ -2,13 +2,13 @@ trigger: none
 
 parameters:
 - name: runDemoRepoMigration
-  displayName: 'Demo Mode: Run Migration Only (Skip Stages 4-7)'
+  displayName: 'Demo Mode: Run Migration Only (Skip Stages 4-6)'
   type: boolean
   default: false
 
 variables:
-  # Variable group for migration-related PAT tokens (Stages 1-7)
-  # Contains: GH_PAT, ADO_PAT (for migration, readiness checks, validation, rewiring, boards integration, disable repos)
+  # Variable group for migration-related PAT tokens (Stages 1-6)
+  # Contains: GH_PAT, ADO_PAT (for migration, readiness checks, validation, rewiring, boards integration)
   - group: core-entauto-github-migration-secrets
   
   - name: maxConcurrent
