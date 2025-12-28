@@ -9,11 +9,9 @@
 ---
 ### 🎯 The Challenge
 
-Migrating repositories from Azure DevOps to GitHub Enterprise using a hybrid approach is inherently complex due to the multiple stages involved in the end-to-end migration process.
+Enterprise-scale repository migration from Azure DevOps to GitHub Enterprise involves multiple complex stages: validation, migration, verification, pipeline rewiring, and integration. Managing this process for thousands of repositories presents significant coordination and scalability challenges.
 
-To address this scalability challenge, I designed a stage-based Azure DevOps YAML pipeline that encapsulates the entire migration lifecycle. This pipeline enables a decentralized, self-service migration model, allowing individual teams to independently migrate only the repositories they own.
-
-By distributing ownership to teams and supporting controlled parallel execution, this approach scales effectively for large enterprises. It avoids centralized bottlenecks and risky big-bang migrations, while making the overall ADO-to-GHE migration process more manageable, auditable, and resilient.
+This pipeline solves these challenges through a staged, self-service approach. Teams can independently migrate their own repositories using a standardized YAML pipeline that handles the entire lifecycle eliminating centralized bottlenecks, reducing risk, and ensuring consistency across the organization.
 
 Migrating thousands of repositories from Azure DevOps to GitHub at enterprise scale introduces several key challenges:
 
@@ -506,6 +504,7 @@ SOFTWARE.
 ---
 
 **Made with ❤️ for the DevOps community**
+
 
 
 
