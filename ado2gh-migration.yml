@@ -6,13 +6,21 @@ parameters:
   type: boolean
   default: false
 
+- name: maxConcurrent
+  displayName: 'Max Concurrent Migrations'
+  type: number
+  default: 3
+  values:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+
 variables:
   # Variable group for migration-related PAT tokens (Stages 1-6)
   # Contains: GH_PAT, ADO_PAT (for migration, readiness checks, validation, rewiring, boards integration)
   - group: core-entauto-github-migration-secrets
-  
-  - name: maxConcurrent
-    value: 3  # Adjust based on your needs (1-5)
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -204,7 +212,7 @@ stages:
             inputs:
               targetType: 'filePath'
               filePath: 'bash/2_migration.sh'
-              arguments: '--csv bash/repos.csv --max-concurrent $(maxConcurrent)'
+              arguments: '--csv bash/repos.csv --max-concurrent ${{ parameters.maxConcurrent }}'
               workingDirectory: '$(System.DefaultWorkingDirectory)'
             env:
               GH_TOKEN: $(GH_PAT)
@@ -216,7 +224,7 @@ stages:
             displayName: 'Publish repos_with_status.csv'
             condition: always()
             inputs:
-              PathtoPublish: 'repos_with_status.csv'
+              PathtoPublish: '$(System.DefaultWorkingDirectory)/repos_with_status.csv'
               ArtifactName: 'migration-results'
               publishLocation: 'Container'
 
@@ -398,14 +406,6 @@ stages:
               GH_TOKEN: $(GH_PAT)
 
           - task: Bash@3
-            displayName: 'Make Rewire Script Executable'
-            inputs:
-              targetType: 'inline'
-              script: |
-                chmod +x bash/4_rewire_pipeline.sh
-                echo "✅ Script permissions set"
-
-          - task: Bash@3
             displayName: 'Execute Pipeline Rewiring'
             name: RewiringTask
             inputs:
@@ -520,14 +520,6 @@ stages:
                 gh extension list
             env:
               GH_TOKEN: $(GH_PAT)
-
-          - task: Bash@3
-            displayName: 'Make Azure Boards Integration Script Executable'
-            inputs:
-              targetType: 'inline'
-              script: |
-                chmod +x bash/5_boards_integration.sh
-                echo "✅ Script permissions set"
 
           - task: Bash@3
             displayName: 'Execute Azure Boards Integration'
