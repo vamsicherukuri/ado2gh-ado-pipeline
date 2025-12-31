@@ -67,9 +67,11 @@ NC='\033[0m' # No Color
 SUCCESS_COUNT=0
 FAILURE_COUNT=0
 ALREADY_MIGRATED_COUNT=0
+SKIPPED_COUNT=0
 declare -a RESULTS
 declare -a FAILED_DETAILS
 declare -a ALREADY_MIGRATED_DETAILS
+declare -a SKIPPED_DETAILS
 declare -A MIGRATED_REPOS  # Track successfully migrated repos
 
 # --- Helper Functions ---
@@ -312,8 +314,10 @@ while IFS= read -r line; do
     
     # Check if repo successfully migrated (safe check for associative array)
     if [ -z "${MIGRATED_REPOS[$ADO_REPO]+x}" ]; then
+        SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
         echo -e "\n${YELLOW}   ⏭️  Skipping: $ADO_PIPELINE${NC}"
         echo -e "${GRAY}      Reason: Repository '$ADO_REPO' failed migration (not in repos_with_status.csv as Success)${NC}"
+        SKIPPED_DETAILS+=("$ADO_PROJECT/$ADO_PIPELINE: Repository '$ADO_REPO' not found in repos_with_status.csv or migration failed")
         continue
     fi
     
@@ -389,6 +393,7 @@ echo -e "${CYAN}========================================${NC}"
 echo -e "Total Pipelines: $PIPELINE_COUNT"
 echo -e "${GREEN}Successful: $SUCCESS_COUNT${NC}"
 echo -e "${YELLOW}Already on GitHub: $ALREADY_MIGRATED_COUNT${NC}"
+echo -e "${YELLOW}Skipped (repo not migrated): $SKIPPED_COUNT${NC}"
 echo -e "${RED}Failed: $FAILURE_COUNT${NC}"
 
 echo -e "\n${CYAN}📋 Detailed Results:${NC}"
@@ -400,6 +405,14 @@ done
 if [ -n "${ALREADY_MIGRATED_DETAILS+x}" ] && [ ${#ALREADY_MIGRATED_DETAILS[@]} -gt 0 ]; then
     echo -e "\n${YELLOW}⚠️  Already on GitHub (No rewiring needed):${NC}"
     for detail in "${ALREADY_MIGRATED_DETAILS[@]}"; do
+        echo -e "${GRAY}   • $detail${NC}"
+    done
+fi
+
+# Show details for skipped pipelines
+if [ -n "${SKIPPED_DETAILS+x}" ] && [ ${#SKIPPED_DETAILS[@]} -gt 0 ]; then
+    echo -e "\n${YELLOW}⏭️  Skipped (Repository not migrated):${NC}"
+    for detail in "${SKIPPED_DETAILS[@]}"; do
         echo -e "${GRAY}   • $detail${NC}"
     done
 fi
@@ -422,6 +435,7 @@ Pipeline Rewiring Log - $TIMESTAMP
 Total Pipelines: $PIPELINE_COUNT
 Successful: $SUCCESS_COUNT
 Already on GitHub: $ALREADY_MIGRATED_COUNT
+Skipped (repo not migrated): $SKIPPED_COUNT
 Failed: $FAILURE_COUNT
 
 Detailed Results:
@@ -429,6 +443,9 @@ $([ ${#RESULTS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${RESULTS[@]}" || echo 
 
 Already on GitHub Details:
 $([ ${#ALREADY_MIGRATED_DETAILS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${ALREADY_MIGRATED_DETAILS[@]}" || echo "None")
+
+Skipped Pipeline Details (Repository not migrated):
+$([ ${#SKIPPED_DETAILS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${SKIPPED_DETAILS[@]}" || echo "None")
 
 Failed Pipeline Details:
 $([ ${#FAILED_DETAILS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${FAILED_DETAILS[@]}" || echo "None")
