@@ -5,7 +5,7 @@
 # - Background jobs write only to log files; parent prints log stream deltas
 # - Robust completion parsing so "failed" increments correctly
 
-set -euo pipefail
+set -o pipefail
 
 ############################################
 # CLI args
