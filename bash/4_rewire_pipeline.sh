@@ -101,6 +101,14 @@ load_migrated_repos() {
     
     echo -e "${GREEN}✅ Loaded ${#MIGRATED_REPOS[@]} successfully migrated repositories${NC}"
     
+    # Debug: Show which repos were loaded
+    if [ ${#MIGRATED_REPOS[@]} -gt 0 ]; then
+        echo -e "${GRAY}   Successfully migrated repos:${NC}"
+        for repo_name in "${!MIGRATED_REPOS[@]}"; do
+            echo -e "${GRAY}     • '$repo_name'${NC}"
+        done
+    fi
+    
     # Skip gracefully if no repos migrated successfully
     if [ ${#MIGRATED_REPOS[@]} -eq 0 ]; then
         echo -e "${YELLOW}⚠️ WARNING: No successfully migrated repositories found${NC}"
@@ -312,10 +320,13 @@ while IFS= read -r line; do
     GITHUB_REPO="${fields[${COL_INDEX["github_repo"]}]}"
     SERVICE_CONNECTION_ID="${fields[${COL_INDEX["serviceConnection"]}]}"
     
+    # Debug: Show what we're checking
+    echo -e "\n${GRAY}   🔍 Checking pipeline: $ADO_PIPELINE (repo: '$ADO_REPO')${NC}"
+    
     # Check if repo successfully migrated (safe check for associative array)
     if [ -z "${MIGRATED_REPOS[$ADO_REPO]+x}" ]; then
         SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
-        echo -e "\n${YELLOW}   ⏭️  Skipping: $ADO_PIPELINE${NC}"
+        echo -e "${YELLOW}   ⏭️  Skipping: $ADO_PIPELINE${NC}"
         echo -e "${GRAY}      Reason: Repository '$ADO_REPO' failed migration (not in repos_with_status.csv as Success)${NC}"
         SKIPPED_DETAILS+=("$ADO_PROJECT/$ADO_PIPELINE: Repository '$ADO_REPO' not found in repos_with_status.csv or migration failed")
         continue
@@ -331,6 +342,9 @@ while IFS= read -r line; do
     ERROR_FILE=$(mktemp)
     trap 'rm -f "$OUTPUT_FILE" "$ERROR_FILE"' EXIT
     
+    # Show command being executed
+    echo -e "${GRAY}      Running: gh ado2gh rewire-pipeline...${NC}"
+    
     if gh ado2gh rewire-pipeline \
         --ado-org "$ADO_ORG" \
         --ado-team-project "$ADO_PROJECT" \
@@ -341,6 +355,13 @@ while IFS= read -r line; do
         
         # Check if already on GitHub (detect from output/warnings)
         OUTPUT_CONTENT=$(cat "$OUTPUT_FILE" "$ERROR_FILE")
+        
+        # Display the verbose output to console
+        if [ -n "$OUTPUT_CONTENT" ]; then
+            echo -e "${GRAY}      --- Command Output ---${NC}"
+            echo "$OUTPUT_CONTENT" | sed 's/^/      /'
+            echo -e "${GRAY}      ---------------------${NC}"
+        fi
         
         if echo "$OUTPUT_CONTENT" | grep -qi "repository.*type.*GitHub\|already.*github\|404.*Not Found"; then
             ALREADY_MIGRATED_COUNT=$((ALREADY_MIGRATED_COUNT + 1))
@@ -366,12 +387,20 @@ while IFS= read -r line; do
         
         # Capture error message
         ERROR_CONTENT=$(cat "$ERROR_FILE" "$OUTPUT_FILE")
+        
+        # Display the error output to console
+        if [ -n "$ERROR_CONTENT" ]; then
+            echo -e "${RED}      --- Error Output ---${NC}"
+            echo "$ERROR_CONTENT" | sed 's/^/      /'
+            echo -e "${RED}      --------------------${NC}"
+        fi
+        
         ERROR_MSG=$(echo "$ERROR_CONTENT" | grep -i "error\|fail\|exception" | head -n 3 | tr '\n' ' ')
         if [ -z "$ERROR_MSG" ]; then
             ERROR_MSG="Unknown error during pipeline rewiring"
         fi
         
-        echo -e "${RED}      Error: $ERROR_MSG${NC}"
+        echo -e "${RED}      Summary: $ERROR_MSG${NC}"
         echo "##[error]Failed to rewire pipeline: $ADO_PROJECT/$ADO_PIPELINE - $ERROR_MSG"
         RESULTS+=("❌ FAILED | $ADO_PROJECT/$ADO_PIPELINE → $GITHUB_ORG/$GITHUB_REPO")
         FAILED_DETAILS+=("$ADO_PROJECT/$ADO_PIPELINE: $ERROR_MSG")
