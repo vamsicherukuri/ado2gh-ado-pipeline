@@ -5,7 +5,7 @@
 # - Background jobs write only to log files; parent prints log stream deltas
 # - Robust completion parsing so "failed" increments correctly
 
-set -o pipefail
+set -euo pipefail
 
 ############################################
 # CLI args
@@ -257,9 +257,8 @@ while IFS= read -r line; do
   QUEUE+=("${org},${teamproject},${repo},${github_org},${github_repo},${gh_repo_visibility}")
 done < "${CSV_PATH}"
 
-############################################
-# Initialize output CSV with Pending
-############################################
+# --- Initialize output CSV with Pending ---
+
 write_migration_status_csv_header
 for item in "${QUEUE[@]}"; do
   IFS=',' read -r org teamproject repo github_org github_repo gh_repo_visibility <<< "${item}"
@@ -391,9 +390,8 @@ fi
 
 echo -e "\033[32m[SUCCESS] ${#MIGRATED[@]} of ${total_repos} repositories migrated successfully\033[0m"
 
-# ========================================
-# GENERATE repos_with_status.csv
-# ========================================
+# --- Generate repos_with_status.csv ---
+
 echo "##[section]📄 Generating repos_with_status.csv for downstream stages..."
 
 STATUS_CSV="repos_with_status.csv"
@@ -415,9 +413,7 @@ done
 
 echo "##[section]✅ Generated ${STATUS_CSV} with ${#MIGRATED[@]} successful and ${#FAILED[@]} failed repositories"
 
-# ========================================
-# EXIT WITH APPROPRIATE STATUS
-# ========================================
+# --- Exit with appropriate status ---
 
 if (( ${#FAILED[@]} == 0 )); then
   # All successful

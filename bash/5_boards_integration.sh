@@ -1,20 +1,7 @@
 #!/usr/bin/env bash
-
-################################################################################
-# Azure Boards Integration Script - ADO to GitHub Enterprise (GHE)
-# 
-# This script integrates Azure Boards with GitHub repositories that have been
-# migrated to GitHub Enterprise.
-#
-# Prerequisites:
-#   - repos.csv with required columns (org, teamproject, github_org, github_repo)
-#   - ADO_PAT environment variable (Azure DevOps PAT with Boards scopes)
-#   - GH_PAT environment variable (GitHub Personal Access Token)
-#   - gh CLI installed with ado2gh extension
-#
-# Usage:
-#   ./5_boards_integration.sh
-################################################################################
+# Azure Boards Integration - Links Boards work items to migrated GitHub repos
+# Requires: ADO_PAT, GH_PAT, repos_with_status.csv
+# Exit codes: 0=success, 1=failure
 
 set -euo pipefail
 

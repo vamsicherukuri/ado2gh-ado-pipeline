@@ -4,8 +4,7 @@ set -euo pipefail
 # Trap errors for debugging
 trap 'echo "ERROR at line $LINENO: Command failed with exit code $?"' ERR
 
-ADO_PAT="${ADO_PAT:-${1:-}}"
-if [ -z "$ADO_PAT" ]; then
+if [ -z "${ADO_PAT:-}" ]; then
     echo -e "\033[31m[ERROR] ADO_PAT environment variable is not set. Please set your Azure DevOps Personal Access Token.\033[0m"
     exit 1
 fi

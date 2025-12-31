@@ -49,9 +49,8 @@ fi
 #   [Step 4] Execute pipeline rewiring
 #   [Step 5] Generate summary and log file
 
-# ========================================
-# CONFIGURATION
-# ========================================
+# --- Configuration ---
+
 PIPELINES_FILE="pipelines.csv"
 REQUIRED_COLUMNS=("org" "teamproject" "pipeline" "github_org" "github_repo" "serviceConnection")
 PLACEHOLDER_VALUES=("your-service-connection-id" "placeholder" "TODO" "TBD" "xxx" "")
@@ -73,9 +72,7 @@ declare -a FAILED_DETAILS
 declare -a ALREADY_MIGRATED_DETAILS
 declare -A MIGRATED_REPOS  # Track successfully migrated repos
 
-# ========================================
-# HELPER FUNCTIONS
-# ========================================
+# --- Helper Functions ---
 
 # Load repos_with_status.csv to filter pipelines
 load_migrated_repos() {
@@ -114,19 +111,31 @@ load_migrated_repos() {
 
 # Function to parse CSV line properly (handles quoted fields)
 parse_csv_line() {
-    local line="$1"
-    local IFS=','
-    local -a fields
-    
-    # Simple CSV parsing (assumes no commas within quoted fields for this use case)
-    IFS=',' read -ra fields <<< "$line"
-    
-    # Remove quotes from fields
-    for i in "${!fields[@]}"; do
-        fields[$i]=$(echo "${fields[$i]}" | sed 's/^"//;s/"$//')
-    done
-    
-    echo "${fields[@]}"
+  local line="$1"
+  local -a fields=()
+  local field="" in_quotes=false i char next
+  for ((i=0; i<${#line}; i++)); do
+    char="${line:$i:1}"
+    next="${line:$((i+1)):1}"
+    if [[ "${char}" == '"' ]]; then
+      if [[ "${in_quotes}" == true ]]; then
+        if [[ "${next}" == '"' ]]; then
+          field+='"'; ((i++))
+        else
+          in_quotes=false
+        fi
+      else
+        in_quotes=true
+      fi
+    elif [[ "${char}" == ',' && "${in_quotes}" == false ]]; then
+      fields+=("${field}")
+      field=""
+    else
+      field+="${char}"
+    fi
+  done
+  fields+=("${field}")
+  printf '%s\n' "${fields[@]}"
 }
 
 # ========================================
@@ -316,6 +325,7 @@ while IFS= read -r line; do
     # Capture output and error from gh ado2gh rewire-pipeline
     OUTPUT_FILE=$(mktemp)
     ERROR_FILE=$(mktemp)
+    trap 'rm -f "$OUTPUT_FILE" "$ERROR_FILE"' EXIT
     
     if gh ado2gh rewire-pipeline \
         --ado-org "$ADO_ORG" \

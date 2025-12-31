@@ -19,7 +19,6 @@ is_json() {
     jq -e . >/dev/null 2>&1
 }
 
-# Helper: URL-encode using jq (already a dependency here)
 urlencode() {
     jq -rn --arg s "$1" '$s|@uri'
 }
@@ -243,28 +242,32 @@ validate_migration() {
 
 # --- CSV parsing with quoted fields ---
 parse_csv_line() {
-    local line="$1"
-    local -a fields=()
-    local field=""
-    local in_quotes=0
-    local i char
-
-    for ((i=0; i<${#line}; i++)); do
-        char="${line:$i:1}"
-        if [ "$char" = '"' ]; then
-            in_quotes=$((1 - in_quotes))
-        elif [ "$char" = ',' ] && [ $in_quotes -eq 0 ]; then
-            fields+=("$field")
-            field=""
+  local line="$1"
+  local -a fields=()
+  local field="" in_quotes=false i char next
+  for ((i=0; i<${#line}; i++)); do
+    char="${line:$i:1}"
+    next="${line:$((i+1)):1}"
+    if [[ "${char}" == '"' ]]; then
+      if [[ "${in_quotes}" == true ]]; then
+        if [[ "${next}" == '"' ]]; then
+          field+='"'; ((i++))
         else
-            field="${field}${char}"
+          in_quotes=false
         fi
-    done
-    fields+=("$field")
-
-    # Return: org(0), teamproject(1), repo(2), github_org(3), github_repo(4), visibility(5), status(6)
-    # CSV now has 7 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility,MigrationStatus
-    echo "${fields[0]}" "${fields[1]}" "${fields[2]}" "${fields[3]}" "${fields[4]}" "${fields[5]}" "${fields[6]}"
+      else
+        in_quotes=true
+      fi
+    elif [[ "${char}" == ',' && "${in_quotes}" == false ]]; then
+      fields+=("${field}")
+      field=""
+    else
+      field+="${char}"
+    fi
+  done
+  fields+=("${field}")
+  # Return: org(0), teamproject(1), repo(2), github_org(3), github_repo(4), visibility(5), status(6)
+  echo "${fields[0]}" "${fields[1]}" "${fields[2]}" "${fields[3]}" "${fields[4]}" "${fields[5]}" "${fields[6]}"
 }
 
 # --- Batch validation from CSV ---
@@ -293,7 +296,6 @@ validate_from_csv() {
     while IFS= read -r line; do
         line="${line%$'\r'}"
         [ -z "$line" ] && continue
-        # CSV now has 7 columns: org,teamproject,repo,github_org,github_repo,gh_repo_visibility,MigrationStatus
         read -r org teamproject repo github_org github_repo gh_repo_visibility migration_status < <(parse_csv_line "$line")
         
         # Skip repositories that failed migration
@@ -332,22 +334,17 @@ fi
 
 echo "##vso[task.logissue type=warning]Post-migration validation completed: $VALIDATION_SUCCESSES succeeded, $VALIDATION_FAILURES failed"
 
-# ========================================
-# EXIT WITH APPROPRIATE STATUS
-# ========================================
-
-# ========================================
+# --- Exit with appropriate status ---
 # Fail if no repositories were processed at all
-# ========================================
+
 if [ $VALIDATION_SUCCESSES -eq 0 ] && [ $VALIDATION_FAILURES -eq 0 ]; then
     echo "##[error]❌ No repositories were validated - all migrations may have failed"
     echo "##vso[task.logissue type=error]Validation failed: No repositories to validate"
     exit 1
 fi
 
-# ========================================
-# Handle validation results
-# ========================================
+# --- Handle validation results ---
+
 if [ $VALIDATION_FAILURES -eq 0 ]; then
     # All successful
     echo "##[section]✅ All $VALIDATION_SUCCESSES repositories validated successfully"
