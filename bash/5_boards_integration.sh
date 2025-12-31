@@ -120,6 +120,9 @@ integrate_azure_boards() {
     export GH_TOKEN="${GH_PAT}"
     export ADO_TOKEN="${ADO_PAT}"
     
+    # Capture output to check for specific errors
+    local temp_output=$(mktemp)
+    
     # Execute gh ado2gh integrate-boards command
     if gh ado2gh integrate-boards \
         --github-org "${github_org}" \
@@ -129,9 +132,36 @@ integrate_azure_boards() {
         >> "$LOG_FILE" 2>&1; then
         
         log_success "Azure Boards integration completed for ${github_org}/${github_repo}"
+        rm -f "$temp_output"
         return 0
     else
-        log_error "Azure Boards integration failed for ${github_org}/${github_repo}"
+        # Check if error is due to invalid authorization scheme
+        if tail -50 "$LOG_FILE" | grep -q "authorization scheme is invalid" 2>/dev/null; then
+            log_error "Azure Boards integration failed: Invalid/stale service connection detected"
+            log_error ""
+            log_error "═══════════════════════════════════════════════════════════════════"
+            log_error "  ACTION REQUIRED: Remove Stale Service Connection"
+            log_error "═══════════════════════════════════════════════════════════════════"
+            log_error ""
+            log_error "A service connection already exists but has invalid authorization."
+            log_error "This typically happens when:"
+            log_error "  • GitHub App installation token expired"
+            log_error "  • Previous integration was incomplete"
+            log_error ""
+            log_error "To fix:"
+            log_error "  1. Open: https://dev.azure.com/${ado_org}/${ado_project}/_settings/adminservices"
+            log_error "  2. Find service connection for GitHub repo: ${github_org}/${github_repo}"
+            log_error "  3. Click the connection and select 'Delete'"
+            log_error "  4. Re-run this pipeline to create a fresh connection"
+            log_error ""
+            log_error "Alternatively, edit the connection and re-authorize the GitHub App."
+            log_error "═══════════════════════════════════════════════════════════════════"
+            log_error ""
+        else
+            log_error "Azure Boards integration failed for ${github_org}/${github_repo}"
+            log_error "Check the log file for details: $LOG_FILE"
+        fi
+        rm -f "$temp_output"
         return 1
     fi
 }
