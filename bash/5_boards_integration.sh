@@ -120,23 +120,38 @@ integrate_azure_boards() {
     export GH_TOKEN="${GH_PAT}"
     export ADO_TOKEN="${ADO_PAT}"
     
-    # Capture output to check for specific errors
+    # Capture output to display and log
     local temp_output=$(mktemp)
+    local temp_error=$(mktemp)
     
     # Execute gh ado2gh integrate-boards command
+    log_info "Running: gh ado2gh integrate-boards..."
+    
     if gh ado2gh integrate-boards \
         --github-org "${github_org}" \
         --github-repo "${github_repo}" \
         --ado-org "${ado_org}" \
         --ado-team-project "${ado_project}" \
-        >> "$LOG_FILE" 2>&1; then
+        > "$temp_output" 2> "$temp_error"; then
+        
+        # Display and log the output
+        local command_output=$(cat "$temp_output" "$temp_error")
+        if [ -n "$command_output" ]; then
+            echo "$command_output" | tee -a "$LOG_FILE"
+        fi
         
         log_success "Azure Boards integration completed for ${github_org}/${github_repo}"
-        rm -f "$temp_output"
+        rm -f "$temp_output" "$temp_error"
         return 0
     else
+        # Display and log the error output
+        local error_output=$(cat "$temp_error" "$temp_output")
+        if [ -n "$error_output" ]; then
+            echo "$error_output" | tee -a "$LOG_FILE"
+        fi
+        
         # Check if error is due to invalid authorization scheme
-        if tail -50 "$LOG_FILE" | grep -q "authorization scheme is invalid" 2>/dev/null; then
+        if echo "$error_output" | grep -q "authorization scheme is invalid" 2>/dev/null; then
             log_error "Azure Boards integration failed: Invalid/stale service connection detected"
             log_error ""
             log_error "═══════════════════════════════════════════════════════════════════"
@@ -161,7 +176,7 @@ integrate_azure_boards() {
             log_error "Azure Boards integration failed for ${github_org}/${github_repo}"
             log_error "Check the log file for details: $LOG_FILE"
         fi
-        rm -f "$temp_output"
+        rm -f "$temp_output" "$temp_error"
         return 1
     fi
 }
