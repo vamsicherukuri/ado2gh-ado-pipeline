@@ -1,0 +1,46 @@
+# Migration pipeline generated files
+# Generated during Stage 3: Migration
+migration-*.txt
+repo_migration_output-*.csv
+repos_with_status.csv
+*.result
+
+# Generated during Stage 4: Validation
+validation-log-*.txt
+
+# Generated during Stage 5: Pipeline Rewiring
+pipeline-rewiring-*.txt
+
+# Generated during Stage 6: Azure Boards Integration
+azure-boards-integration-*.log
+
+# Analysis and documentation (temporary/local files)
+CODE_CLEANUP_ANALYSIS.md
+DEEP_CODE_CLEANUP_ANALYSIS.md
+FINAL_CLEANUP_ANALYSIS.md
+PHASE1_CLEANUP_SUMMARY.md
+PHASE2_CLEANUP_SUMMARY.md
+PRODUCTION_READINESS_ANALYSIS.md
+ULTRA_DEEP_CODE_ANALYSIS.md
+*_ANALYSIS.md
+*_SUMMARY.md
+orgs.csv
+repos.csv
+pipelines.csv
+team-projects.csv
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.code-workspace
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/

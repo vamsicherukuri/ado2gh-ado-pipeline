@@ -503,16 +503,57 @@ echo -e "\n${GRAY}📄 Log saved: $LOG_FILE${NC}"
 ACTUAL_FAILURES=$FAILURE_COUNT  # Only count real errors, not "already migrated"
 ACTUAL_SUCCESSES=$((SUCCESS_COUNT + ALREADY_MIGRATED_COUNT))  # Both are successful outcomes
 
+# Check if ALL pipelines were skipped (no actual work done)
+if [ $ACTUAL_SUCCESSES -eq 0 ] && [ $ACTUAL_FAILURES -eq 0 ] && [ $SKIPPED_COUNT -gt 0 ]; then
+    # All pipelines skipped - show warning
+    echo -e "\n${YELLOW}⚠️  All pipelines skipped - no repositories were migrated${NC}"
+    echo -e "${YELLOW}   ⏭️  Skipped: $SKIPPED_COUNT${NC}"
+    echo "##[warning]⚠️ All $SKIPPED_COUNT pipeline(s) skipped because their repositories were not successfully migrated"
+    echo "##vso[task.logissue type=warning]All pipelines skipped - no repositories migrated"
+    
+    # Show skipped pipeline details
+    if [ ${#SKIPPED_DETAILS[@]} -gt 0 ]; then
+        echo -e "\n${YELLOW}Skipped Pipeline Details:${NC}"
+        for detail in "${SKIPPED_DETAILS[@]}"; do
+            echo "##[warning]  Skipped: $detail"
+        done
+    fi
+    
+    # Set task result to SucceededWithIssues since no work was done
+    echo "##vso[task.complete result=SucceededWithIssues]All pipelines skipped - no repositories migrated"
+    exit 0
+
 # Downstream stages should not fail completely, only show partial success
-if [ $ACTUAL_FAILURES -eq 0 ]; then
+elif [ $ACTUAL_FAILURES -eq 0 ]; then
     # All successful (including already migrated)
-    if [ $ALREADY_MIGRATED_COUNT -gt 0 ]; then
+    if [ $SKIPPED_COUNT -gt 0 ]; then
+        # Some succeeded, some skipped
+        echo -e "\n${GREEN}✅ Pipeline rewiring completed successfully${NC}"
+        echo -e "${GREEN}   ✅ Successful: $SUCCESS_COUNT${NC}"
+        if [ $ALREADY_MIGRATED_COUNT -gt 0 ]; then
+            echo -e "${YELLOW}   ⚠️  Already on GitHub: $ALREADY_MIGRATED_COUNT${NC}"
+        fi
+        echo -e "${YELLOW}   ⏭️  Skipped: $SKIPPED_COUNT${NC}"
+        echo "##[warning]$SKIPPED_COUNT pipeline(s) skipped because repositories were not migrated"
+        
+        # Show skipped details
+        if [ ${#SKIPPED_DETAILS[@]} -gt 0 ]; then
+            echo -e "\n${YELLOW}Skipped Pipeline Details (Repository not migrated):${NC}"
+            for detail in "${SKIPPED_DETAILS[@]}"; do
+                echo "##[warning]  Skipped: $detail"
+            done
+        fi
+        
+        echo "##vso[task.complete result=SucceededWithIssues]Rewiring completed with $SKIPPED_COUNT skipped pipeline(s)"
+        exit 0
+    elif [ $ALREADY_MIGRATED_COUNT -gt 0 ]; then
         echo -e "\n${GREEN}✅ Pipeline rewiring completed successfully${NC}"
         echo "##[warning]$ALREADY_MIGRATED_COUNT pipeline(s) already on GitHub - no rewiring needed"
+        exit 0
     else
         echo -e "\n${GREEN}✅ All pipelines rewired successfully${NC}"
+        exit 0
     fi
-    exit 0
     
 else
     # Partial success or some failed - downstream stage should continue
@@ -521,17 +562,30 @@ else
     if [ $ALREADY_MIGRATED_COUNT -gt 0 ]; then
         echo -e "${YELLOW}   ⚠️  Already on GitHub: $ALREADY_MIGRATED_COUNT${NC}"
     fi
+    if [ $SKIPPED_COUNT -gt 0 ]; then
+        echo -e "${YELLOW}   ⏭️  Skipped: $SKIPPED_COUNT${NC}"
+    fi
     echo -e "${RED}   ❌ Failed: $FAILURE_COUNT${NC}"
     
     # Output warnings for partial success
-    echo "##[warning]⚠️ Rewiring completed with issues: $ACTUAL_SUCCESSES succeeded, $FAILURE_COUNT failed"
-    echo "##vso[task.logissue type=warning]Partial success: $ACTUAL_SUCCESSES succeeded, $FAILURE_COUNT failed"
+    echo "##[warning]⚠️ Rewiring completed with issues: $ACTUAL_SUCCESSES succeeded, $SKIPPED_COUNT skipped, $FAILURE_COUNT failed"
+    echo "##vso[task.logissue type=warning]Partial success: $ACTUAL_SUCCESSES succeeded, $SKIPPED_COUNT skipped, $FAILURE_COUNT failed"
     
     # Show failed pipeline details as warnings
-    echo -e "\n${YELLOW}Failed Pipeline Details:${NC}"
-    for detail in "${FAILED_DETAILS[@]}"; do
-        echo "##[warning]  Failed: $detail"
-    done
+    if [ ${#FAILED_DETAILS[@]} -gt 0 ]; then
+        echo -e "\n${YELLOW}Failed Pipeline Details:${NC}"
+        for detail in "${FAILED_DETAILS[@]}"; do
+            echo "##[warning]  Failed: $detail"
+        done
+    fi
+    
+    # Show skipped pipeline details
+    if [ ${#SKIPPED_DETAILS[@]} -gt 0 ]; then
+        echo -e "\n${YELLOW}Skipped Pipeline Details (Repository not migrated):${NC}"
+        for detail in "${SKIPPED_DETAILS[@]}"; do
+            echo "##[warning]  Skipped: $detail"
+        done
+    fi
     
     # Show already migrated details if any
     if [ ${#ALREADY_MIGRATED_DETAILS[@]} -gt 0 ]; then
