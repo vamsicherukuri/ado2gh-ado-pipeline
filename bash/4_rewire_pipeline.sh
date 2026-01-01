@@ -469,16 +469,16 @@ Skipped (repo not migrated): $SKIPPED_COUNT
 Failed: $FAILURE_COUNT
 
 Detailed Results:
-$([ ${#RESULTS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${RESULTS[@]}" || echo "None")
+$(if [ "${#RESULTS[@]}" -gt 0 ] 2>/dev/null; then printf '%s\n' "${RESULTS[@]}"; else echo "None"; fi)
 
 Already on GitHub Details:
-$([ ${#ALREADY_MIGRATED_DETAILS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${ALREADY_MIGRATED_DETAILS[@]}" || echo "None")
+$(if [ "${#ALREADY_MIGRATED_DETAILS[@]}" -gt 0 ] 2>/dev/null; then printf '%s\n' "${ALREADY_MIGRATED_DETAILS[@]}"; else echo "None"; fi)
 
 Skipped Pipeline Details (Repository not migrated):
-$([ ${#SKIPPED_DETAILS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${SKIPPED_DETAILS[@]}" || echo "None")
+$(if [ "${#SKIPPED_DETAILS[@]}" -gt 0 ] 2>/dev/null; then printf '%s\n' "${SKIPPED_DETAILS[@]}"; else echo "None"; fi)
 
 Failed Pipeline Details:
-$([ ${#FAILED_DETAILS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${FAILED_DETAILS[@]}" || echo "None")
+$(if [ "${#FAILED_DETAILS[@]}" -gt 0 ] 2>/dev/null; then printf '%s\n' "${FAILED_DETAILS[@]}"; else echo "None"; fi)
 ========================================
 
 Detailed Command Output:
