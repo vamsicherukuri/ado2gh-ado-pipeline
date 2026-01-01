@@ -54,6 +54,7 @@ fi
 PIPELINES_FILE="pipelines.csv"
 REQUIRED_COLUMNS=("org" "teamproject" "pipeline" "github_org" "github_repo" "serviceConnection")
 PLACEHOLDER_VALUES=("your-service-connection-id" "placeholder" "TODO" "TBD" "xxx" "")
+DETAILED_LOG=$(mktemp)
 
 # Color codes
 RED='\033[0;31m'
@@ -356,10 +357,10 @@ while IFS= read -r line; do
         # Check if already on GitHub (detect from output/warnings)
         OUTPUT_CONTENT=$(cat "$OUTPUT_FILE" "$ERROR_FILE")
         
-        # Display the verbose output to console
+        # Display and save the verbose output to console and log
         if [ -n "$OUTPUT_CONTENT" ]; then
             echo -e "${GRAY}      --- Command Output ---${NC}"
-            echo "$OUTPUT_CONTENT" | sed 's/^/      /'
+            echo "$OUTPUT_CONTENT" | sed 's/^/      /' | tee -a "$DETAILED_LOG"
             echo -e "${GRAY}      ---------------------${NC}"
         fi
         
@@ -388,10 +389,10 @@ while IFS= read -r line; do
         # Capture error message
         ERROR_CONTENT=$(cat "$ERROR_FILE" "$OUTPUT_FILE")
         
-        # Display the error output to console
+        # Display and save the error output to console and log
         if [ -n "$ERROR_CONTENT" ]; then
             echo -e "${RED}      --- Error Output ---${NC}"
-            echo "$ERROR_CONTENT" | sed 's/^/      /'
+            echo "$ERROR_CONTENT" | sed 's/^/      /' | tee -a "$DETAILED_LOG"
             echo -e "${RED}      --------------------${NC}"
         fi
         
@@ -479,7 +480,18 @@ $([ ${#SKIPPED_DETAILS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${SKIPPED_DETAI
 Failed Pipeline Details:
 $([ ${#FAILED_DETAILS[@]} -gt 0 ] 2>/dev/null && printf '%s\n' "${FAILED_DETAILS[@]}" || echo "None")
 ========================================
+
+Detailed Command Output:
+========================================
 EOF
+
+# Append detailed command output if exists
+if [ -f "$DETAILED_LOG" ] && [ -s "$DETAILED_LOG" ]; then
+    cat "$DETAILED_LOG" >> "$LOG_FILE"
+    rm -f "$DETAILED_LOG"
+else
+    echo "No detailed command output captured" >> "$LOG_FILE"
+fi
 
 echo -e "\n${GRAY}📄 Log saved: $LOG_FILE${NC}"
 
