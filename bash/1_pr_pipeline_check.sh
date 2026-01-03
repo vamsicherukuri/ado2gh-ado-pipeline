@@ -40,7 +40,12 @@ fi
 
 
 urlencode() {
-  printf '%s' "$1" | jq -Rr @uri
+    jq -rn --arg s "$1" '$s|@uri'
+}
+
+# Helper: validate JSON quickly
+is_json() {
+    jq -e . >/dev/null 2>&1
 }
 
 echo -e "\nScanning repositories for active pull requests..."
@@ -84,6 +89,13 @@ while IFS= read -r line || [ -n "$line" ]; do
         repo_body=$(echo "$repo_response" | sed 's/HTTP_STATUS:[0-9]*$//')
         
         if [ "$http_status" -eq 200 ] && [ -n "$repo_body" ]; then
+            # Validate JSON response
+            if ! echo "$repo_body" | is_json; then
+                pr_check_failed=true
+                echo -e "\033[31m[ERROR] Repository API returned non-JSON response for '$selected_repo_name' in project '$ado_project' (HTTP $http_status).\033[0m"
+                continue
+            fi
+            
             repo_id=$(echo "$repo_body" | jq -r '.id // empty' 2>/dev/null)
             repo_name=$(echo "$repo_body" | jq -r '.name // empty' 2>/dev/null)
             
@@ -97,6 +109,13 @@ while IFS= read -r line || [ -n "$line" ]; do
                 pr_body=$(echo "$pr_response" | sed 's/HTTP_STATUS:[0-9]*$//')
                 
                 if [ "$pr_http_status" -eq 200 ] && [ -n "$pr_body" ]; then
+                    # Validate JSON response
+                    if ! echo "$pr_body" | is_json; then
+                        pr_check_failed=true
+                        echo -e "\033[31m[ERROR] PR API returned non-JSON response for repository '$selected_repo_name' in project '$ado_project' (HTTP $pr_http_status).\033[0m"
+                        continue
+                    fi
+                    
                     # Parse PR response and add to summary
                     pr_count=$(echo "$pr_body" | jq -r '.count // 0' 2>/dev/null)
                     if [ "$pr_count" -gt 0 ]; then
@@ -177,6 +196,13 @@ for project in "${unique_projects[@]}"; do
     builds_response=$(curl -s -H "Authorization: Bearer $ADO_PAT" -H "Content-Type: application/json" "$builds_uri" 2>/dev/null) || true
     
     if [ -n "$builds_response" ]; then
+        # Validate JSON response
+        if ! echo "$builds_response" | is_json; then
+            build_check_failed=true
+            echo -e "\033[31m[ERROR] Builds API returned non-JSON response for project '$ado_project'.\033[0m"
+            continue
+        fi
+        
         # Parse builds and filter for running/queued ones
         # Build parsing section
         while IFS='|' read -r pipeline_name status runUrl; do
@@ -196,6 +222,13 @@ for project in "${unique_projects[@]}"; do
     releases_response=$(curl -s -H "Authorization: Bearer $ADO_PAT" -H "Content-Type: application/json" "$releases_uri" 2>/dev/null) || true
     
     if [ -n "$releases_response" ]; then
+        # Validate JSON response
+        if ! echo "$releases_response" | is_json; then
+            release_check_failed=true
+            echo -e "\033[31m[ERROR] Releases API returned non-JSON response for project '$ado_project'.\033[0m"
+            continue
+        fi
+        
         # Get release IDs
         while read -r release_id; do
             if [ -n "$release_id" ] && [ "$release_id" != "null" ]; then
@@ -203,6 +236,13 @@ for project in "${unique_projects[@]}"; do
                 release_details=$(curl -s -H "Authorization: Bearer $ADO_PAT" -H "Content-Type: application/json" "$release_details_uri" 2>/dev/null) || true
                 
                 if [ -n "$release_details" ]; then
+                    # Validate JSON response
+                    if ! echo "$release_details" | is_json; then
+                        release_check_failed=true
+                        echo -e "\033[31m[ERROR] Release details API returned non-JSON response for release ID $release_id in project '$ado_project'.\033[0m"
+                        continue
+                    fi
+                    
                     # Check if any environments are in progress
                     running_envs=$(echo "$release_details" | jq -r '.environments[]? | select(.status == "inProgress") | "\(.name): \(.status)"' 2>/dev/null)
                     if [ -n "$running_envs" ]; then
