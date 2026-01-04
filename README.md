@@ -170,7 +170,7 @@ Executes `5_boards_integration.sh` (operates on successfully migrated repos only
 
 > **Watch this video guide** before starting your first migration:
 
-<video src="https://github.com/vamsicherukuri/ado2gh-ado-pipeline/releases/download/v1.0-videos/prerequisites_part.1.mp4" controls width="100%"></video>
+https://github.com/user-attachments/assets/b0532143-9f5f-4977-a3cb-24983d5d243f
 
 _Covers: CSV configuration, PAT tokens, service connections, and variable groups_
 
