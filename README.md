@@ -171,7 +171,7 @@ Executes `5_boards_integration.sh` (operates on successfully migrated repos only
 > **Watch this video guide** before starting your first migration:
 
 <!-- 📹 VIDEO EMBED: After uploading to GitHub, replace this comment with:
-<video src="https://github.com/USER/REPO/assets/12345/prerequisites_part_1.mp4" controls width="100%"></video>
+<video src="[https://github.com/USER/REPO/assets/12345/prerequisites_part_1.mp4](https://github.com/user-attachments/assets/b0532143-9f5f-4977-a3cb-24983d5d243f)" controls width="100%"></video>
 -->
 
 **📺 [Prerequisites Setup Guide](media/prerequisites_part%201.mp4)** _(26 MB)_  
